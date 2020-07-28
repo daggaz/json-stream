@@ -33,8 +33,8 @@ than you have available to your system.
 `json-stream` does not read the whole document into memory, it only buffers
 enough from the stream to produce the next item of data.
 
-In transient mode (see below) `json-stream` also doesn't store up all of
-the parsed data is memory.
+Additionally, in transient mode (see below) `json-stream` also doesn't store up all of
+the parsed data in memory.
 
 ### Latency
 
