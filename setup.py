@@ -42,6 +42,7 @@ setup(
     keywords='sample, setuptools, development',
     package_dir={'': 'src'},
     packages=find_packages(where='src'),
+    setup_requires=['wheel'],
     python_requires='>=3.5, <4',
     project_urls={
         'Bug Reports': 'https://github.com/daggaz/json-stream/issues',
