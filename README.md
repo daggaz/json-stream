@@ -6,10 +6,18 @@ Simple streaming JSON parser.
  [`json.load()`](https://docs.python.org/3/library/json.html#json.load). It 
  will read a JSON document and convert it into native python types.
 
+```python
+import json_stream
+data = json_stream.load(f)
+```
+
 Features:
 * stream all JSON data types (objects or lists)
 * stream nested data
 * simple pythonic `list`-like/`dict`-like interface
+* stream truncated or malformed JSON data (up to the first error)
+* pure python
+* no dependencies
 
 Unlike `json.load()`, `json-stream` can _stream_ JSON data from a file-like
 object. This has the following benefits:
@@ -26,15 +34,15 @@ the whole JSON document into memory before parsing it.
 ### Memory usage
 
 `json.load()` first reads the whole document into memory as a string. It
-then starts parsing that string and converting the whole document into python types
-again stored in memory. For a very large document, this could be more memory
-than you have available to your system.
+then starts parsing that string and converting the whole document into python
+types again stored in memory. For a very large document, this could be more
+memory than you have available to your system.
 
-`json-stream` does not read the whole document into memory, it only buffers
-enough from the stream to produce the next item of data.
+`json_stream.load()` does not read the whole document into memory, it only
+buffers enough from the stream to produce the next item of data.
 
-Additionally, in transient mode (see below) `json-stream` also doesn't store up all of
-the parsed data in memory.
+Additionally, in transient mode (see below) `json-stream` also doesn't store 
+up all of the parsed data in memory.
 
 ### Latency
 
@@ -42,44 +50,53 @@ the parsed data in memory.
 only care about the first 10 items in a list of 2 million items, then you
 have wait until all 2 million items have been parsed first.
 
-`json-stream` produces data as soon as it is available in the stream.
+`json_stream.load()` produces data as soon as it is available in the stream.
 
 ## Usage
+
+### `json_stream.load()`
 
 `json_stream.load()` has two modes of operation, controlled by
 the `persistent` argument (default false).
 
-### Transient mode (default)
+#### Transient mode (default)
 
-This mode is appropriate if you can consume the data iteratively. It is also
-the mode you must use if you do not want to use the all memory required to store
-the entire parsed result.
+This mode is appropriate if you can consume the data iteratively. You cannot 
+move backwards through the stream to read data that has already been skipped
+over. It is the mode you **must** use if you want process large amounts of
+JSON data without consuming large amounts of memory required.
 
 In transient mode, only the data currently being read is stored in memory. Any
 data previously read from the stream is discarded (it's up to you what to do 
-with it) and attempting to access this data results in a `TransientAccessException`.
+with it) and attempting to access this data results in a
+`TransientAccessException`.
 
 ```python
 import json_stream
 
-# JSON: {"x": 1, "y": ["a", "b", "c"]}
-data = json_stream.load(f)  # {"x": 1, "y": ['a', 'b', 'c']}
+# JSON: {"count": 3, "results": ["a", "b", "c"]}
+data = json_stream.load(f)  # data is a transient dict-like object 
+# stream has been read up to "{"
 
-# use data like a list or dict
-y = data["y"]
+# use data like a dict
+results = data["results"]  # results is a transient list-like object
+# stream has been read up to "[", we now cannot read "count"
 
-# already read past "x" in stream -> exception
-x = data["x"]
+# iterate transient list
+for result in results:
+    print(result)  # prints a, b, c
+# stream has been read up to "]"
 
-# iterate
-for c in y:
-    print(c)  # prints a, b, c
+# attempt to read "count" from earlier in stream
+count = data["count"]  # will raise exception
+# stream is now exhausted
 
-# already read from list -> exception
-for c in y: pass
+# attempt to read from list that has already be iterated
+for result in results:  # will raise exception
+    pass
 ```
 
-### Persistent mode
+#### Persistent mode
 
 In persistent mode all previously read data is stored in memory as
 it is parsed. The returned `dict`-like or `list`-like objects
@@ -93,21 +110,40 @@ is found in the stream.
 ```python
 import json_stream
 
-# JSON: {"x": 1, "y": ["a", "b", "c"]}
+# JSON: {"count": 1, "results": ["a", "b", "c"]}
 data = json_stream.load(f, persistent=True)
+# data is a streaming  dict-like object 
+# stream has been read up to "{"
 
-# use data like a list or dict
-# stream is read up to the middle of list
-b = data["y"][1]  # b = "b"
+# use data like a dict
+results = data["results"]  # results is a streaming list-like object
+# stream has been read up to "["
+# count has been stored data
 
-# read from memory
-x = data["x"]  # x = 1
+# use results like a list
+a_result = results[1]  # a_result = "b"
+# stream has been read up to the middle of list
+# "a" and "b" have been stored in results
+
+# read earlier data from memory
+count = data["count"]  # count = 1
+
+# consume rest of list
+results.read_all()
+# stream has been read up to "}"
+# "c" is now stored in results too
+# results.is_streaming() == False
+
+# consume everything
+data.read_all()
+# stream is now exhausted
+# data.is_streaming() == False
 ```
 
 Persistent mode is not appropriate if you care about memory consumption, but
 provides an identical experience compared to `json.load()`.
 
-## visitor pattern
+### visitor pattern
 
 You can also parse using a visitor-style approach where a function you supply
 is called for each data item as it is parsed (depth-first).
@@ -120,22 +156,44 @@ import json_stream
 
 # JSON: {"x": 1, "y": {}, "xxxx": [1,2, {"yyyy": 1}, "z", 1, []]}
 
-def visitor(path, data):
-    print(f"{path}: {data}")
+def visitor(item, path):
+    print(f"{item} at path {path}")
 
 json_stream.visit(f, visitor)
 ```
 
 Output:
 ```
-('x',): 1
-('y',): {}
-('xxxx', 0): 1
-('xxxx', 1): 2
-('xxxx', 2, 'yyyy'): 1
-('xxxx', 3): z
-('xxxx', 4): 1
-('xxxx', 5): []
+1 at path ('x',)
+{} at path ('y',)
+1 at path ('xxxx', 0)
+2 at path ('xxxx', 1)
+1 at path ('xxxx', 2, 'yyyy')
+z at path ('xxxx', 3)
+1 at path ('xxxx', 4)
+[] at path ('xxxx', 5)
+```
+
+### Stream a URL
+
+#### urllib
+
+```python
+import urllib.request
+import json_stream
+
+with urllib.request.urlopen('http://example.com/data.json') as response:
+    data = json_stream.load(response)
+```
+
+#### requests
+
+```python
+import requests
+import json_stream.requests
+
+with requests.get('http://example.com/data.json', stream=True) as response:
+    data = json_stream.requests.load(response)
 ```
 
 # Future improvements
@@ -169,4 +227,6 @@ generate SAX style events while parsing JSON.
 
 # Acknowledgements
 
-The JSON tokenizer used in the project was taken from the [NAYA](https://github.com/danielyule/naya) project.
+The JSON tokenizer used in the project was taken from the
+[NAYA](https://github.com/danielyule/naya) project.
+ 

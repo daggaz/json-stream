@@ -1,6 +1,6 @@
 from naya import tokenize
 
-from json_stream.base import StreamingJSONBase, StreamingJSONList, StreamingJSONObject
+from json_stream.base import TransientStreamingJSONBase, StreamingJSONObject, StreamingJSONList
 
 
 def _visit(obj, visitor, path):
@@ -22,5 +22,5 @@ def _visit(obj, visitor, path):
 def visit(fp, visitor):
     token_stream = tokenize(fp)
     _, token = next(token_stream)
-    obj = StreamingJSONBase.factory(token, token_stream, persistent=True)
+    obj = TransientStreamingJSONBase.factory(token, token_stream)
     _visit(obj, visitor, ())
