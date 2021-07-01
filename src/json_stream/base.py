@@ -4,7 +4,7 @@ from collections import OrderedDict
 from itertools import chain
 from typing import Optional, Iterator, Any
 
-from naya.json import TOKEN_TYPE
+from json_stream.tokenizer import TokenType
 
 
 class TransientAccessException(Exception):
@@ -119,14 +119,14 @@ class TransientStreamingJSONBase(StreamingJSONBase, ABC):
 class StreamingJSONList(StreamingJSONBase, ABC):
     def _load_item(self):
         token_type, v = next(self._stream)
-        if token_type == TOKEN_TYPE.OPERATOR:
+        if token_type == TokenType.OPERATOR:
             if v == ']':
                 self._done()
             if v == ',':
                 token_type, v = next(self._stream)
             else:  # pragma: no cover
                 raise ValueError(f"Expecting value, comma or ], got {v}")
-        if token_type == TOKEN_TYPE.OPERATOR:
+        if token_type == TokenType.OPERATOR:
             self._child = v = self.factory(v, self._stream)
         return v
 
@@ -181,20 +181,20 @@ class TransientStreamingJSONList(TransientStreamingJSONBase, StreamingJSONList):
 class StreamingJSONObject(StreamingJSONBase, ABC):
     def _load_item(self):
         token_type, k = next(self._stream)
-        if token_type == TOKEN_TYPE.OPERATOR:
+        if token_type == TokenType.OPERATOR:
             if k == '}':
                 self._done()
             if k == ',':
                 token_type, k = next(self._stream)
-        if token_type != TOKEN_TYPE.STRING:  # pragma: no cover
+        if token_type != TokenType.STRING:  # pragma: no cover
             raise ValueError(f"Expecting string, comma or }}, got {k} ({token_type})")
 
         token_type, token = next(self._stream)
-        if token_type != TOKEN_TYPE.OPERATOR or token != ":":
+        if token_type != TokenType.OPERATOR or token != ":":
             raise ValueError("Expecting :")  # pragma: no cover
 
         token_type, v = next(self._stream)
-        if token_type == TOKEN_TYPE.OPERATOR:
+        if token_type == TokenType.OPERATOR:
             self._child = v = self.factory(v, self._stream)
         return k, v
 
