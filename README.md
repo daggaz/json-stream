@@ -225,6 +225,16 @@ generate SAX style events while parsing JSON.
 * It's not pure python
 * It does not provide a pythonic `dict`/`list`-like interface 
 
+# Build
+```bash
+cd ~/sources/json-stream/
+python3 -m venv ~/build/
+. ~/build/bin/activate
+pip install --upgrade build twine
+python -m build
+twine upload dist/*
+```
+
 # Acknowledgements
 
 The JSON tokenizer used in the project was taken from the
