@@ -150,6 +150,26 @@ class TestLoader(TestCase):
         self.assertIsInstance(results, TransientStreamingJSONList)
         self.assertEqual(list(results), ['a', 'b', 'c'])
 
+    def test_load_nested_transient_first_list_item_object(self):
+        json = '[{"a": 4}, "b", "c"]'
+        data = load(StringIO(json), persistent=False)
+        self.assertIsInstance(data, TransientStreamingJSONList)
+        items = iter(data)
+        item = next(items)
+        self.assertIsInstance(item, TransientStreamingJSONObject)
+        self.assertDictEqual({"a": 4}, dict(item.items()))
+        self.assertEqual(list(items), ['b', 'c'])
+
+    def test_load_nested_transient_first_list_item_list(self):
+        json = '[["a"], "b", "c"]'
+        data = load(StringIO(json), persistent=False)
+        self.assertIsInstance(data, TransientStreamingJSONList)
+        items = iter(data)
+        item = next(items)
+        self.assertIsInstance(item, TransientStreamingJSONList)
+        self.assertListEqual(["a"], list(item))
+        self.assertEqual(list(items), ['b', 'c'])
+
     def _test_object(self, obj, persistent):
         self.assertListEqual(list(self._to_data(obj, persistent)), list(obj))
         self.assertListEqual(list(self._to_data(obj, persistent).keys()), list(obj.keys()))

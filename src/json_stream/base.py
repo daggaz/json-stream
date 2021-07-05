@@ -124,6 +124,8 @@ class StreamingJSONList(StreamingJSONBase, ABC):
                 self._done()
             if v == ',':
                 token_type, v = next(self._stream)
+            elif v in '{[':
+                pass
             else:  # pragma: no cover
                 raise ValueError(f"Expecting value, comma or ], got {v}")
         if token_type == TokenType.OPERATOR:
@@ -250,7 +252,9 @@ class TransientStreamingJSONObject(TransientStreamingJSONBase, StreamingJSONObje
             return super()._find_item(k)
         except KeyError:
             if was_started:
-                raise TransientAccessException(f"{k} not found in transient JSON stream or already passed in this stream")
+                raise TransientAccessException(
+                    f"{k} not found in transient JSON stream or already passed in this stream",
+                )
             raise
 
     def items(self):
