@@ -217,7 +217,7 @@ parsing a simple JSON list as a stream.
 
 ## Yajl-Py
 
-[Yajl-Py]() is a wrapper around the Yajl JSON library that can be used to 
+[Yajl-Py](https://pykler.github.io/yajl-py/) is a wrapper around the Yajl JSON library that can be used to 
 generate SAX style events while parsing JSON.
 
 ### Why not Yajl-Py?
