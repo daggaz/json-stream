@@ -1,4 +1,5 @@
 import collections
+import copy
 from abc import ABC
 from collections import OrderedDict
 from itertools import chain
@@ -13,8 +14,20 @@ class TransientAccessException(Exception):
 
 class StreamingJSONBase(ABC):
     @classmethod
-    def factory(cls, token, token_stream):
-        raise NotImplementedError()  # pragma: no cover
+    def factory(cls, token, token_stream, persistent):
+        if persistent:
+            if token == '{':
+                return PersistentStreamingJSONObject(token_stream)
+            if token == '[':
+                return PersistentStreamingJSONList(token_stream)
+        else:
+            if token == '{':
+                return TransientStreamingJSONObject(token_stream)
+            if token == '[':
+                return TransientStreamingJSONList(token_stream)
+        raise ValueError(f"Unknown operator {token}")  # pragma: no cover
+
+    _persistent_children: bool
 
     def __init__(self, token_stream):
         self.streaming = True
@@ -59,22 +72,25 @@ class StreamingJSONBase(ABC):
     def __iter__(self) -> Iterator[str]:
         raise NotImplementedError()  # pragma: no cover
 
+    def __copy__(self):
+        raise copy.Error("Copying json_steam objects leads to a bad time")
+
+    def __deepcopy__(self, memo):
+        raise copy.Error("Copying json_steam objects leads to a bad time")
+
 
 class PersistentStreamingJSONBase(StreamingJSONBase, ABC):
-    @classmethod
-    def factory(cls, token, token_stream, _=None):
-        if token == '{':
-            return PersistentStreamingJSONObject(token_stream)
-        if token == '[':
-            return PersistentStreamingJSONList(token_stream)
-        raise ValueError(f"Unknown operator {token}")  # pragma: no cover
-
     def __init__(self, token_stream):
         super().__init__(token_stream)
         self._data = self._init_persistent_data()
+        self._persistent_children = True
 
     def _init_persistent_data(self):
         raise NotImplementedError()  # pragma: no cover
+
+    def transient(self):
+        self._persistent_children = False
+        return self
 
     def __iter__(self):
         return chain(self._data, self._get__iter__())
@@ -88,17 +104,10 @@ class PersistentStreamingJSONBase(StreamingJSONBase, ABC):
 
 
 class TransientStreamingJSONBase(StreamingJSONBase, ABC):
-    @classmethod
-    def factory(cls, token, token_stream, _=None):
-        if token == '{':
-            return TransientStreamingJSONObject(token_stream)
-        if token == '[':
-            return TransientStreamingJSONList(token_stream)
-        raise ValueError(f"Unknown operator {token}")  # pragma: no cover
-
     def __init__(self, token_stream):
         super().__init__(token_stream)
         self._started = False
+        self._persistent_children = False
 
     def _iter_items(self):
         self._started = True
@@ -108,9 +117,17 @@ class TransientStreamingJSONBase(StreamingJSONBase, ABC):
         return self._find_item(k)
 
     def __iter__(self):
+        self._check_started()
+        return self._get__iter__()
+
+    def persistent(self):
+        self._check_started()
+        self._persistent_children = True
+        return self
+
+    def _check_started(self):
         if self._started:
             raise TransientAccessException("Cannot restart iteration of transient JSON stream")
-        return self._get__iter__()
 
     def __repr__(self):  # pragma: no cover
         return f"<{type(self).__name__}: TRANSIENT, {'STREAMING' if self.streaming else 'DONE'}>"
@@ -129,7 +146,7 @@ class StreamingJSONList(StreamingJSONBase, ABC):
             else:  # pragma: no cover
                 raise ValueError(f"Expecting value, comma or ], got {v}")
         if token_type == TokenType.OPERATOR:
-            self._child = v = self.factory(v, self._stream)
+            self._child = v = self.factory(v, self._stream, self._persistent_children)
         return v
 
     def _get__iter__(self):
@@ -197,7 +214,7 @@ class StreamingJSONObject(StreamingJSONBase, ABC):
 
         token_type, v = next(self._stream)
         if token_type == TokenType.OPERATOR:
-            self._child = v = self.factory(v, self._stream)
+            self._child = v = self.factory(v, self._stream, self._persistent_children)
         return k, v
 
     def _get__iter__(self):
@@ -258,16 +275,13 @@ class TransientStreamingJSONObject(TransientStreamingJSONBase, StreamingJSONObje
             raise
 
     def items(self):
-        if self._started:
-            raise TransientAccessException("Cannot restart iteration of transient JSON stream")
+        self._check_started()
         return self._iter_items()
 
     def keys(self):
-        if self._started:
-            raise TransientAccessException("Cannot restart iteration of transient JSON stream")
+        self._check_started()
         return (k for k, v in self._iter_items())
 
     def values(self):
-        if self._started:
-            raise TransientAccessException("Cannot restart iteration of transient JSON stream")
+        self._check_started()
         return (v for k, v in self._iter_items())

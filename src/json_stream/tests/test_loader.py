@@ -1,3 +1,4 @@
+import copy
 import json
 from io import StringIO
 from itertools import zip_longest
@@ -169,6 +170,47 @@ class TestLoader(TestCase):
         self.assertIsInstance(item, TransientStreamingJSONList)
         self.assertListEqual(["a"], list(item))
         self.assertEqual(list(items), ['b', 'c'])
+
+    def test_not_copiable(self):
+        json = '[["a"], "b", "c"]'
+        with self.assertRaisesRegex(copy.Error, "^Copying json_steam objects leads to a bad time$"):
+            copy.copy(load(StringIO(json)))
+        with self.assertRaisesRegex(copy.Error, "^Copying json_steam objects leads to a bad time$"):
+            copy.deepcopy(load(StringIO(json)))
+
+    def test_transient_to_persistent(self):
+        json = '{"results": [{"x": 1, "y": 3}, {"y": 4, "x": 2}]}'
+        xs = iter((1, 2))
+        ys = iter((3, 4))
+
+        data = load(StringIO(json))  # data is a transient dict-like object
+        self.assertIsInstance(data, TransientStreamingJSONObject)
+
+        results = data['results']
+        self.assertIsInstance(results, TransientStreamingJSONList)
+
+        # iterate transient list, but produce persistent items
+        for result in results.persistent():
+            # result is a persistent dict-like object
+            self.assertIsInstance(result, PersistentStreamingJSONObject)
+            x = next(xs)
+            y = next(ys)
+            self.assertEqual(result['x'], x)
+            self.assertEqual(result['y'], y)  # would error on second result without .persistent()
+            self.assertEqual(result['x'], x)  # would error without .persistent()
+
+    def test_persistent_to_transient(self):
+        json = """{"a": 1, "x": ["long", "list", "I", "don't", "want", "in", "memory"], "b": 2}"""
+        data = load(StringIO(json), persistent=True).transient()
+        self.assertIsInstance(data, PersistentStreamingJSONObject)
+
+        self.assertEqual(data["a"], 1)
+        l = data["x"]
+        self.assertIsInstance(l, TransientStreamingJSONList)
+        self.assertEqual(data["b"], 2)
+        self.assertEqual(data["b"], 2)  # would error if data was transient
+        with self.assertRaisesRegex(TransientAccessException, "Index 0 already passed in this stream"):
+            _ = l[0]  # cannot access transient list
 
     def _test_object(self, obj, persistent):
         self.assertListEqual(list(self._to_data(obj, persistent)), list(obj))

@@ -1,4 +1,4 @@
-from json_stream.base import TransientStreamingJSONBase, StreamingJSONObject, StreamingJSONList
+from json_stream.base import StreamingJSONObject, StreamingJSONList, StreamingJSONBase
 from json_stream.tokenizer import tokenize
 
 
@@ -21,5 +21,5 @@ def _visit(obj, visitor, path):
 def visit(fp, visitor):
     token_stream = tokenize(fp)
     _, token = next(token_stream)
-    obj = TransientStreamingJSONBase.factory(token, token_stream)
+    obj = StreamingJSONBase.factory(token, token_stream, persistent=False)
     _visit(obj, visitor, ())

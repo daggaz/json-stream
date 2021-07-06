@@ -59,6 +59,8 @@ have wait until all 2 million items have been parsed first.
 `json_stream.load()` has two modes of operation, controlled by
 the `persistent` argument (default false).
 
+It is also possible to "mix" the modes as you consume the data.
+
 #### Transient mode (default)
 
 This mode is appropriate if you can consume the data iteratively. You cannot 
@@ -142,6 +144,58 @@ data.read_all()
 
 Persistent mode is not appropriate if you care about memory consumption, but
 provides an identical experience compared to `json.load()`.
+
+#### Mixed mode
+
+In some cases you will need to be able to randomly access some part of the 
+data, but still only have that specific data taking up memory resources.
+
+For example, you might have a very long list of objects, but you cannot always 
+access the keys of the objects in stream order. You want to be able to iterate
+the list transiently, but access the result objects persistently.
+
+This can be achieved using the `persistent()` method of all the `list` or
+`dict`-like objects json_stream produces. Calling `persistent()` causes the existing
+transient object to produce persistent child objects.
+
+Note that the `persistent()` method makes the children of the object it
+is called on persistent, not the object it is called on.
+
+```python
+import json_stream
+
+# JSON: {"results": [{"x": 1, "y": 3}, {"y": 4, "x": 2}]}
+# note that the keys of the inner objects are not ordered 
+data = json_stream.load(f)  # data is a transient dict-like object 
+
+# iterate transient list, but produce persistent items
+for result in data['results'].persistent():
+    # result is a persistent dict-like object
+    print(result['x'])  # print x
+    print(result['y'])  # print y (error on second result without .persistent())
+    print(result['x'])  # print x again (error without .persistent())
+```
+
+The opposite is also possible, going from persistent mode to transient mode, though 
+the use cases for this are more esoteric.
+
+```python
+# JSON: {"a": 1, "x": ["long", "list", "I", "don't", "want", "in", "memory"], "b": 2}
+data = load(StringIO(json), persistent=True).transient()
+# data is a persistent dict-list object that produces transient children
+
+print(data["a"])  # prints 1
+x = data["x"]  # x is a transient list, you can use it accordingly
+print(x[0])  # prints long
+
+# access earlier data from memory
+print(data["a"])  # this would have raised an exception if data was transient
+
+print(data["b"])  # prints 2
+
+# we have now moved past all the data in the transient list
+print(x[0])  # will raise exception
+```
 
 ### visitor pattern
 
