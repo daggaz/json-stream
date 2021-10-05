@@ -217,6 +217,14 @@ class TestLoader(TestCase):
         self.assertListEqual(list(self._to_data(obj, persistent).keys()), list(obj.keys()))
         self.assertListEqual(list(self._to_data(obj, persistent).values()), list(obj.values()))
         self.assertListEqual(list(self._to_data(obj, persistent).items()), list(obj.items()))
+
+        for key in obj.keys():
+            self.assertEqual(self._to_data(obj, persistent).get(key), obj[key])
+
+        self.assertFalse("foobar" in obj.keys())
+        self.assertEqual(self._to_data(obj, persistent).get("foobar"), None)
+        self.assertEqual(self._to_data(obj, persistent).get("foobar", "specified default"), "specified default")
+
         if persistent:
             self.assertEqual(len(self._to_data(obj, persistent)), len(obj))
         for k, expected_k in zip_longest(self._to_data(obj, persistent), obj):

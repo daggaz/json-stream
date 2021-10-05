@@ -235,6 +235,12 @@ class StreamingJSONObject(StreamingJSONBase, ABC):
     def values(self):
         raise NotImplementedError()  # pragma: no cover
 
+    def get(self, k, default=None) -> Any:
+        try:
+            return self[k]
+        except KeyError:
+            return default
+
 
 class PersistentStreamingJSONObject(PersistentStreamingJSONBase, StreamingJSONObject):
     def _init_persistent_data(self):
