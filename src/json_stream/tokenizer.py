@@ -318,7 +318,8 @@ def tokenize(stream):
 
         return advance, next_state, charcode
     state = State.WHITESPACE
-    char = stream.read(1)
+    single = stream.read(1)
+    char = single.decode("utf-8") if type(single) is bytes else single
     index = 0
     while char:
         try:
@@ -330,7 +331,8 @@ def tokenize(stream):
             token = []
             yield now_token
         if advance:
-            char = stream.read(1)
+            single = stream.read(1)
+            char = single.decode("utf-8") if type(single) is bytes else single
             index += 1
     process_char(" ", charcode)
     if completed:
