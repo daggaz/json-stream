@@ -250,6 +250,34 @@ with requests.get('http://example.com/data.json', stream=True) as response:
     data = json_stream.requests.load(response)
 ```
 
+### Stream a URL (with visitor)
+
+#### urllib
+
+```python
+import urllib.request
+import json_stream
+
+def visitor(item, path):
+    print(f"{item} at path {path}")
+    
+with urllib.request.urlopen('http://example.com/data.json') as response:
+    json_stream.visit(response, visitor)
+```
+
+#### requests
+
+```python
+import requests
+import json_stream.requests
+
+def visitor(item, path):
+    print(f"{item} at path {path}")
+    
+with requests.get('http://example.com/data.json', stream=True) as response:
+    json_stream.requests.visit(response, visitor)
+```
+
 # Future improvements
 
 * Allow long strings in the JSON to be read as streams themselves
