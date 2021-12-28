@@ -5,6 +5,7 @@ https://github.com/danielyule/naya
 
 Copyright (c) 2019 Daniel Yule
 """
+import io
 
 
 class TokenType:
@@ -43,7 +44,30 @@ class State:
     UNICODE_4 = 25
 
 
+def _guess_encoding(stream):
+    # if it looks like a urllib response, get the charset from the headers (if any)
+    try:
+        encoding = stream.headers.get_content_charset()
+    except:  # noqa
+        encoding = None
+    if encoding is None:
+        # JSON is supposed to be UTF-8
+        # https://tools.ietf.org/id/draft-ietf-json-rfc4627bis-09.html#:~:text=The%20default%20encoding%20is%20UTF,16%20and%20UTF%2D32).
+        encoding = 'utf-8'
+    return encoding
+
+
+def _ensure_text(stream):
+    data = stream.read(0)
+    if isinstance(data, bytes):
+        encoding = _guess_encoding(stream)
+        return io.TextIOWrapper(stream, encoding=encoding)
+    return stream
+
+
 def tokenize(stream):
+    stream = _ensure_text(stream)
+
     def is_delimiter(char):
         return char.isspace() or char in "{}[]:,"
 

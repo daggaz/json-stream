@@ -1,14 +1,23 @@
-from io import StringIO
+from io import StringIO, BytesIO
 from unittest import TestCase
 
 import json_stream
 
 
 class TestVisitor(TestCase):
+    JSON = '{"x": 1, "y": {}, "xxxx": [1,2, {"yyyy": 1}, "z", 1, []]}'
+
     def test_visitor(self):
-        json = '{"x": 1, "y": {}, "xxxx": [1,2, {"yyyy": 1}, "z", 1, []]}'
         visited = []
-        json_stream.visit(StringIO(json), lambda a, b: visited.append((a, b)))
+        json_stream.visit(StringIO(self.JSON), lambda a, b: visited.append((a, b)))
+        self._assert_data_okay(visited)
+
+    def test_visitor_binary(self):
+        visited = []
+        json_stream.visit(BytesIO(self.JSON.encode()), lambda a, b: visited.append((a, b)))
+        self._assert_data_okay(visited)
+
+    def _assert_data_okay(self, visited):
         self.assertListEqual([
             (1, ('x',)),
             ({}, ('y',)),

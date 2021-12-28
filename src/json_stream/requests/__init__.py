@@ -21,6 +21,13 @@ class IterableStream(io.RawIOBase):
         return True
 
 
+def _to_file(response):
+    return io.BufferedReader(IterableStream(response.iter_content()))
+
+
 def load(response, persistent=False):
-    f = io.TextIOWrapper(io.BufferedReader(IterableStream(response.iter_content())))
-    return json_stream.load(f, persistent=persistent)
+    return json_stream.load(_to_file(response), persistent=persistent)
+
+
+def visit(response, visitor):
+    return json_stream.visit(_to_file(response), visitor)

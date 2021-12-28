@@ -250,6 +250,94 @@ with requests.get('http://example.com/data.json', stream=True) as response:
     data = json_stream.requests.load(response)
 ```
 
+### Stream a URL (with visitor)
+
+#### urllib
+
+```python
+import urllib.request
+import json_stream
+
+def visitor(item, path):
+    print(f"{item} at path {path}")
+    
+with urllib.request.urlopen('http://example.com/data.json') as response:
+    json_stream.visit(response, visitor)
+```
+
+#### requests
+
+```python
+import requests
+import json_stream.requests
+
+def visitor(item, path):
+    print(f"{item} at path {path}")
+    
+with requests.get('http://example.com/data.json', stream=True) as response:
+    json_stream.requests.visit(response, visitor)
+```
+
+### Encoding json-stream objects
+
+You can encode _persistent_ json-stream `dict`-like and `list`-like object back to JSON using the built-in
+`json.dump()` or `json.dumps` functions, but with a little additional work:
+
+```python
+import json
+
+import json_stream
+from json_stream.dump import JSONStreamEncoder, default
+
+data = json_stream.load(f, persistent=True)
+
+# Option 1: supply json_stream.encoding.default as the default argument
+print(json.dumps(data, default=default))
+
+# Option 2: supply json_stream.encoding.JSONStreamEncoder as the cls argument
+# This allows you to created your own subclass to further customise encoding
+print(json.dumps(data, cls=JSONStreamEncoder))
+```
+
+If you are using a library that internally takes data you pass it and encodes
+it using `json.dump()`. You can also use JSONStreamEncoder() as a context manager.
+
+It works by monkey-patching the built-in `JSONEncoder.default` method during the
+scope of the `with` statement.
+
+```python 
+# library code
+def some_library_function_out_of_your_control(arg):
+    json.dumps(arg)
+
+# your code
+with JSONStreamEncoder():
+    some_library_function_out_of_your_control(data)
+```
+
+#### Thread safety (experimental)
+
+There is also a thread-safe version of the `json.dump` context manager:
+
+```python
+from json_stream.dump.threading import ThreadSafeJSONStreamEncoder
+
+# your code
+with ThreadSafeJSONStreamEncoder():
+   some_library_function_out_of_your_control(data)
+```
+
+The thread-safe implementation will ensure that concurrent uses of the 
+context manager will only apply the patch for the first thread entering
+the patched section(s) and will only remove the patch when the last
+thread exits the patched sections(s)
+
+Additionally, if the patch is somehow called by a thread that is _not_
+currently in a patched section (i.e. some other thread calling 
+`json.dump`) then that thread will block until the patch has been
+removed. While such an un-patched thread is active, any thread attempting
+to apply the patch is blocked.
+
 # Future improvements
 
 * Allow long strings in the JSON to be read as streams themselves

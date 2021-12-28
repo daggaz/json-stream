@@ -1,6 +1,6 @@
 import copy
 import json
-from io import StringIO
+from io import StringIO, BytesIO
 from itertools import zip_longest
 from unittest import TestCase
 
@@ -24,6 +24,11 @@ class TestLoader(TestCase):
         obj = {"a": 1, "b": None, "c": True}
         self._test_object(obj, persistent=True)
         self._test_object(obj, persistent=False)
+
+    def test_load_object_binary(self):
+        obj = {"a": 1, "b": None, "c": True}
+        self._test_object(obj, persistent=True, binary=True)
+        self._test_object(obj, persistent=False, binary=True)
 
     def test_load_object_get_persistent(self):
         json = '{"a": 1, "b": null, "c": true}'
@@ -212,11 +217,11 @@ class TestLoader(TestCase):
         with self.assertRaisesRegex(TransientAccessException, "Index 0 already passed in this stream"):
             _ = l[0]  # cannot access transient list
 
-    def _test_object(self, obj, persistent):
-        self.assertListEqual(list(self._to_data(obj, persistent)), list(obj))
-        self.assertListEqual(list(self._to_data(obj, persistent).keys()), list(obj.keys()))
-        self.assertListEqual(list(self._to_data(obj, persistent).values()), list(obj.values()))
-        self.assertListEqual(list(self._to_data(obj, persistent).items()), list(obj.items()))
+    def _test_object(self, obj, persistent, binary=False):
+        self.assertListEqual(list(self._to_data(obj, persistent, binary)), list(obj))
+        self.assertListEqual(list(self._to_data(obj, persistent, binary).keys()), list(obj.keys()))
+        self.assertListEqual(list(self._to_data(obj, persistent, binary).values()), list(obj.values()))
+        self.assertListEqual(list(self._to_data(obj, persistent, binary).items()), list(obj.items()))
 
         for key in obj.keys():
             self.assertEqual(self._to_data(obj, persistent).get(key), obj[key])
@@ -226,12 +231,12 @@ class TestLoader(TestCase):
         self.assertEqual(self._to_data(obj, persistent).get("foobar", "specified default"), "specified default")
 
         if persistent:
-            self.assertEqual(len(self._to_data(obj, persistent)), len(obj))
-        for k, expected_k in zip_longest(self._to_data(obj, persistent), obj):
+            self.assertEqual(len(self._to_data(obj, persistent, binary)), len(obj))
+        for k, expected_k in zip_longest(self._to_data(obj, persistent, binary), obj):
             self.assertEqual(k, expected_k)
 
         if not persistent:
-            data = self._to_data(obj, persistent)
+            data = self._to_data(obj, persistent, binary)
             iter(data)  # iterates first time
             with self.assertRaises(TransientAccessException):
                 iter(data)  # can't get second iterator
@@ -255,5 +260,10 @@ class TestLoader(TestCase):
             with self.assertRaises(TransientAccessException):
                 iter(data)  # can't get second iterator
 
-    def _to_data(self, obj, persistent):
-        return load(StringIO(json.dumps(obj)), persistent)
+    def _to_data(self, obj, persistent, binary=False):
+        data = json.dumps(obj)
+        if binary:
+            stream = BytesIO(data.encode())
+        else:
+            stream = StringIO(data)
+        return load(stream, persistent)
