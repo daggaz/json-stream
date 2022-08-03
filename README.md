@@ -315,6 +315,21 @@ with JSONStreamEncoder():
     some_library_function_out_of_your_control(data)
 ```
 
+### Converting to standard Python types
+
+To convert a json-stream `dict`-like or `list`-like object and all its
+descendants to a standard `list` and `dict`, you can use the
+`json_stream.to_standard_types` utility:
+
+```python
+# JSON: {"round": 1, "results": [1, 2, 3]}
+data = json_stream.load(f)
+results = data["results"]
+print(results)  # prints <TransientStreamingJSONList: TRANSIENT, STREAMING>
+converted = json_stream.to_standard_types(results)
+print(converted)  # prints [1, 2, 3]
+```
+
 #### Thread safety (experimental)
 
 There is also a thread-safe version of the `json.dump` context manager:
