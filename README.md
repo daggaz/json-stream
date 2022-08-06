@@ -338,6 +338,20 @@ currently in a patched section (i.e. some other thread calling
 removed. While such an un-patched thread is active, any thread attempting
 to apply the patch is blocked.
 
+### Custom tokenizer
+
+You can supply and alternative JSON tokenizer implementation. Simply pass 
+a tokenizer to the `load()` or `visit()` methods.
+
+```python
+json_stream.load(f, tokenizer=some_tokenizer)
+```
+
+##### [json-stream-rs-tokenizer](https://pypi.org/project/json-stream-rs-tokenizer/)
+
+3rd party Rust-based tokenizer implementations that provides significant
+parsing speedup compared to pure python implementation.
+
 # Future improvements
 
 * Allow long strings in the JSON to be read as streams themselves
