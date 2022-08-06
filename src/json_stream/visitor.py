@@ -18,8 +18,8 @@ def _visit(obj, visitor, path):
         visitor(obj, path)
 
 
-def visit(fp, visitor):
-    token_stream = tokenize(fp)
+def visit(fp, visitor, tokenizer=tokenize):
+    token_stream = tokenizer(fp)
     _, token = next(token_stream)
     obj = StreamingJSONBase.factory(token, token_stream, persistent=False)
     _visit(obj, visitor, ())
