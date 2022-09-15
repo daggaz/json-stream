@@ -347,6 +347,8 @@ a tokenizer to the `load()` or `visit()` methods.
 json_stream.load(f, tokenizer=some_tokenizer)
 ```
 
+The requests methods also accept a customer tokenizer parameter.
+
 ##### [json-stream-rs-tokenizer](https://pypi.org/project/json-stream-rs-tokenizer/)
 
 3rd party Rust-based tokenizer implementations that provides significant
