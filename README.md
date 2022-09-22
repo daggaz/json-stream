@@ -393,6 +393,14 @@ python -m build
 twine upload dist/*
 ```
 
+# Donations
+
+[![PayPal](https://www.paypalobjects.com/webstatic/mktg/Logo/pp-logo-100px.png)](https://paypal.me/JCockburn307?country.x=GB&locale.x=en_GB)
+
+OR
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/daggaz)
+
 # Acknowledgements
 
 The JSON tokenizer used in the project was taken from the
