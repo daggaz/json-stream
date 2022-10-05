@@ -1,6 +1,21 @@
 # json-stream
 
-Simple streaming JSON parser.
+[![PyPI package and version badge](https://img.shields.io/pypi/v/json-stream)](https://pypi.org/project/json-stream)
+[![Supported Python versions badge](https://img.shields.io/pypi/pyversions/json-stream)](https://pypi.org/project/json-stream/)
+
+
+Simple streaming JSON parser and encoder.
+
+When [reading](#reading) JSON data, `json-stream` can decode JSON data in 
+a streaming manner.
+
+When [writing](#writing) JSON data, `json-stream` can stream JSON objects 
+as you produce them.
+
+These techniques allow you to [reduce memory consumption and 
+latency](#what-are-the-problems-with-the-standard-json-package).
+
+# Reading
 
 `json-stream` is a JSON parser just like the standard library's
  [`json.load()`](https://docs.python.org/3/library/json.html#json.load). It 
@@ -12,7 +27,7 @@ data = json_stream.load(f)
 ```
 
 Features:
-* stream all JSON data types (objects or lists)
+* stream all JSON data types (objects, lists and simple types)
 * stream nested data
 * simple pythonic `list`-like/`dict`-like interface
 * stream truncated or malformed JSON data (up to the first error)
@@ -22,35 +37,9 @@ Features:
 Unlike `json.load()`, `json-stream` can _stream_ JSON data from a file-like
 object. This has the following benefits:
 
-* It does not require the whole json document to be into memory up-front
-* It can start producing data before the entire document has finished loading
-* It only requires enough memory to hold the data currently being parsed
-
-## What are the problems with standard `json.load()`?
-
-The problem with the `json.load()` stem from the fact that it must read
-the whole JSON document into memory before parsing it.
-
-### Memory usage
-
-`json.load()` first reads the whole document into memory as a string. It
-then starts parsing that string and converting the whole document into python
-types again stored in memory. For a very large document, this could be more
-memory than you have available to your system.
-
-`json_stream.load()` does not read the whole document into memory, it only
-buffers enough from the stream to produce the next item of data.
-
-Additionally, in transient mode (see below) `json-stream` also doesn't store 
-up all the parsed data in memory.
-
-### Latency
-
-`json.load()` produces all the data after parsing the whole document. If you
-only care about the first 10 items in a list of 2 million items, then you
-have wait until all 2 million items have been parsed first.
-
-`json_stream.load()` produces data as soon as it is available in the stream.
+* it does not require the whole json document to be read into memory up-front
+* it can start producing data before the entire document has finished loading
+* it only requires enough memory to hold the data currently being parsed
 
 ## Usage
 
@@ -354,6 +343,188 @@ The requests methods also accept a customer tokenizer parameter.
 3rd party Rust-based tokenizer implementations that provides significant
 parsing speedup compared to pure python implementation.
 
+# Writing
+
+The standard library's `json.dump()` function can only accept standard
+python types such as `dict`, `list`, `str`.
+
+`json-stream` allows you to write streaming JSON output based on python
+generators instead.
+
+For actually encoding and writing to the stream, `json-stream` 
+still uses the standard library's `json.dump()` function, but provides
+wrappers that adapt python generators into `dict`/`list` subclasses 
+that `json.dump()` can use.
+
+The means that you do not have to generate all of your data upfront
+before calling `json.dump()`.
+
+## Usage
+
+To use `json-stream` to generate JSON data iteratively, you must first 
+write python generators (or use any other iterable).
+
+To output JSON objects, the iterable must yield key/value pairs.
+
+To output JSON lists, the iterable must yield individual items.
+
+The values yielded can be either be standard python types or another other
+`Streamable` object, allowing lists and object to be arbitrarily nested.
+
+`streamable_list`/`streamable_dict` can be used to wrap an existing
+iterable:
+```python
+import sys
+import json
+
+from json_stream import streamable_list
+
+# wrap existing iterable
+data = streamable_list(range(10))
+
+# consume iterable with standard json.dump()
+json.dump(data, sys.stdout)
+```
+
+Or they can be used as decorators on generator functions:
+```python
+import json
+import sys
+
+from json_stream import streamable_dict
+
+# declare a new streamable dict generator function
+@streamable_dict
+def generate_dict_of_squares(n):
+    for i in range(n):
+        # this could be some memory intensive operation
+        # or just a really large value of n
+        yield i, i ** 2
+
+# data is will already be Streamable because
+# of the decorator
+data = generate_dict_of_squares(10)
+json.dump(data, sys.stdout)
+```
+
+## Example
+
+The following example generates a JSON object with a nested JSON list.
+It uses `time.sleep()` to slow down the generation and show that the
+output is indeed written as the data is created.
+
+```python
+import sys
+import json
+import time
+
+from json_stream.writer import streamable_dict, streamable_list
+
+
+# define a list data generator that (slowly) yields 
+# items that will be written as a JSON list
+@streamable_list
+def generate_list(n):
+    # output n numbers and their squares
+    for i in range(n):  # range is itself a generator
+        yield i
+        time.sleep(1)
+
+
+# define a dictionary data generator that (slowly) yields 
+# key/value pairs that will be written as a JSON dict
+@streamable_dict
+def generate_dict(n):
+    # output n numbers and their squares
+    for i in range(n):  # range is itself a generator
+        yield i, i ** 2
+        time.sleep(1)
+
+    # yield another dictionary item key, with the value
+    # being a streamed nested list
+    yield "a list", generate_list(n)
+
+
+# get a streamable generator
+data = generate_dict(5)
+
+# use json.dump() to write dict generator to stdout
+json.dump(data, sys.stdout, indent=2)
+
+# if you already have an iterable object, you can just
+# call streamable_* on it to make it writable
+data = streamable_list(range(10))
+json.dump(data, sys.stdout)
+
+```
+
+Output:
+```json
+{
+  "0": 0,
+  "1": 1,
+  "2": 4,
+  "3": 9,
+  "4": 16,
+  "a list": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ]
+}
+```
+
+# What are the problems with the standard `json` package?
+
+## Reading with `json.load()`
+The problem with the `json.load()` stem from the fact that it must read
+the whole JSON document into memory before parsing it.
+
+### Memory usage
+
+`json.load()` first reads the whole document into memory as a string. It
+then starts parsing that string and converting the whole document into python
+types again stored in memory. For a very large document, this could be more
+memory than you have available to your system.
+
+`json_stream.load()` does not read the whole document into memory, it only
+buffers enough from the stream to produce the next item of data.
+
+Additionally, in the default transient mode (see below) `json-stream` doesn't store 
+up all of the parsed data in memory.
+
+### Latency
+
+`json.load()` produces all the data after parsing the whole document. If you
+only care about the first 10 items in a list of 2 million items, then you
+have wait until all 2 million items have been parsed first.
+
+`json_stream.load()` produces data as soon as it is available in the stream.
+
+## Writing
+
+### Memory usage
+
+While `json.dump()` does iteratively write JSON data to the given
+file-like object, you must first produce the entire document to be 
+written as standard python types (`dict`, `list`, etc). For a very
+large document, this could be more memory than you have available 
+to your system.
+
+`json-stream` allows you iteratively generate your data one item at
+a time, and thus consumes only the memory required to generate that
+one item.
+
+### Latency
+
+`json.dump()` can only start writing to the output file once all the
+data has been generated up front at standard python types.
+
+The iterative generation of JSON items provided by `json-stream`
+allows the data to be written as it is produced.
+
 # Future improvements
 
 * Allow long strings in the JSON to be read as streams themselves
@@ -405,4 +576,3 @@ OR
 
 The JSON tokenizer used in the project was taken from the
 [NAYA](https://github.com/danielyule/naya) project.
- 
