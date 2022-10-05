@@ -42,7 +42,7 @@ memory than you have available to your system.
 buffers enough from the stream to produce the next item of data.
 
 Additionally, in transient mode (see below) `json-stream` also doesn't store 
-up all of the parsed data in memory.
+up all the parsed data in memory.
 
 ### Latency
 
@@ -93,7 +93,7 @@ for result in results:
 count = data["count"]  # will raise exception
 # stream is now exhausted
 
-# attempt to read from list that has already be iterated
+# attempt to read from list that has already been iterated
 for result in results:  # will raise exception
     pass
 ```
@@ -295,7 +295,7 @@ data = json_stream.load(f, persistent=True)
 print(json.dumps(data, default=default))
 
 # Option 2: supply json_stream.encoding.JSONStreamEncoder as the cls argument
-# This allows you to created your own subclass to further customise encoding
+# This allows you to create your own subclass to further customise encoding
 print(json.dumps(data, cls=JSONStreamEncoder))
 ```
 
