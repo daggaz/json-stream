@@ -1,5 +1,5 @@
 from json_stream.base import StreamingJSONObject, StreamingJSONList, StreamingJSONBase
-from json_stream.tokenizer import tokenize
+from json_stream.select_tokenizer import default_tokenizer
 
 
 def _visit(obj, visitor, path):
@@ -18,7 +18,7 @@ def _visit(obj, visitor, path):
         visitor(obj, path)
 
 
-def visit(fp, visitor, tokenizer=tokenize):
+def visit(fp, visitor, tokenizer=default_tokenizer):
     token_stream = tokenizer(fp)
     _, token = next(token_stream)
     obj = StreamingJSONBase.factory(token, token_stream, persistent=False)
