@@ -13,9 +13,9 @@ When [writing](#writing) JSON data, `json-stream` can stream JSON objects
 as you produce them.
 
 These techniques allow you to [reduce memory consumption and 
-latency](#what-are-the-problems-with-the-standard-json-package).
+latency](#standard-json-problems).
 
-# Reading
+# <a id="reading"></a> Reading
 
 `json-stream` is a JSON parser just like the standard library's
  [`json.load()`](https://docs.python.org/3/library/json.html#json.load). It 
@@ -476,7 +476,7 @@ Output:
 }
 ```
 
-# What are the problems with the standard `json` package?
+# <a id="standard-json-problems"></a> What are the problems with the standard `json` package?
 
 ## Reading with `json.load()`
 The problem with the `json.load()` stem from the fact that it must read
@@ -503,7 +503,7 @@ have wait until all 2 million items have been parsed first.
 
 `json_stream.load()` produces data as soon as it is available in the stream.
 
-## Writing
+## <a id="writing"></a> Writing
 
 ### Memory usage
 
