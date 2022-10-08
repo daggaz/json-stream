@@ -342,7 +342,7 @@ if `json-stream-rs-tokenizer` is not available.
 
 ### Custom tokenizer
 
-You can supply and alternative JSON tokenizer implementation. Simply pass 
+You can supply an alternative JSON tokenizer implementation. Simply pass 
 a tokenizer to the `load()` or `visit()` methods.
 
 ```python
