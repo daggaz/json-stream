@@ -32,8 +32,8 @@ Features:
 * stream nested data
 * simple pythonic `list`-like/`dict`-like interface
 * stream truncated or malformed JSON data (up to the first error)
-* pure python
-* no dependencies
+* [native code parsing speedups](#rust-tokenizer) for most common platforms 
+* pure python fallback if native extensions not available
 
 Unlike `json.load()`, `json-stream` can _stream_ JSON data from a file-like
 object. This has the following benefits:
@@ -328,9 +328,21 @@ currently in a patched section (i.e. some other thread calling
 removed. While such an un-patched thread is active, any thread attempting
 to apply the patch is blocked.
 
+### <a id="rust-tokenizer"></a> Rust tokenizer speedups
+
+By default `json-stream` uses the 
+[`json-stream-rs-tokenizer`](https://pypi.org/project/json-stream-rs-tokenizer/)
+native extension.
+
+This is a 3rd party Rust-based tokenizer implementations that provides
+significant parsing speedup compared to pure python implementation.
+
+`json-stream` will fallback to its pure python tokenizer implementation
+if `json-stream-rs-tokenizer` is not available.
+
 ### Custom tokenizer
 
-You can supply and alternative JSON tokenizer implementation. Simply pass 
+You can supply an alternative JSON tokenizer implementation. Simply pass 
 a tokenizer to the `load()` or `visit()` methods.
 
 ```python
@@ -339,10 +351,6 @@ json_stream.load(f, tokenizer=some_tokenizer)
 
 The requests methods also accept a customer tokenizer parameter.
 
-##### [json-stream-rs-tokenizer](https://pypi.org/project/json-stream-rs-tokenizer/)
-
-3rd party Rust-based tokenizer implementations that provides significant
-parsing speedup compared to pure python implementation.
 
 # Writing
 
