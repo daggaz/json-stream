@@ -1,6 +1,7 @@
 import io
 
 import json_stream
+from json_stream.select_tokenizer import default_tokenizer
 
 
 class IterableStream(io.RawIOBase):
@@ -25,9 +26,9 @@ def _to_file(response):
     return io.BufferedReader(IterableStream(response.iter_content()))
 
 
-def load(response, persistent=False):
-    return json_stream.load(_to_file(response), persistent=persistent)
+def load(response, persistent=False, tokenizer=default_tokenizer):
+    return json_stream.load(_to_file(response), persistent=persistent, tokenizer=tokenizer)
 
 
-def visit(response, visitor):
-    return json_stream.visit(_to_file(response), visitor)
+def visit(response, visitor, tokenizer=default_tokenizer):
+    return json_stream.visit(_to_file(response), visitor, tokenizer=tokenizer)

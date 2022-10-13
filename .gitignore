@@ -4,4 +4,8 @@ build/
 dist/
 *.egg-info/
 .eggs/
+.DS_Store
+venv/
+.run/
+.pytest_cache/
 __pycache__/
