@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "json-stream"
-version = "2.0.2"
+version = "2.0.3"
 authors = [
     {name = "Jamie Cockburn", email="jamie_cockburn@hotmail.co.uk"},
 ]
@@ -22,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
 requires-python = ">=3.5,<4"
 dependencies = ["json-stream-rs-tokenizer >= 0.4.8"]
