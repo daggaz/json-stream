@@ -22,13 +22,13 @@ class IterableStream(io.RawIOBase):
         return True
 
 
-def _to_file(response):
-    return io.BufferedReader(IterableStream(response.iter_content()))
+def _to_file(response, chunk_size):
+    return io.BufferedReader(IterableStream(response.iter_content(chunk_size=chunk_size)))
 
 
-def load(response, persistent=False, tokenizer=default_tokenizer):
-    return json_stream.load(_to_file(response), persistent=persistent, tokenizer=tokenizer)
+def load(response, persistent=False, tokenizer=default_tokenizer, chunk_size=1):
+    return json_stream.load(_to_file(response, chunk_size), persistent=persistent, tokenizer=tokenizer)
 
 
-def visit(response, visitor, tokenizer=default_tokenizer):
-    return json_stream.visit(_to_file(response), visitor, tokenizer=tokenizer)
+def visit(response, visitor, tokenizer=default_tokenizer, chunk_size=1):
+    return json_stream.visit(_to_file(response, chunk_size), visitor, tokenizer=tokenizer)
