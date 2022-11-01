@@ -240,6 +240,11 @@ with requests.get('http://example.com/data.json', stream=True) as response:
     data = json_stream.requests.load(response)
 ```
 
+Function `load(Response)` uses `response.iter_content(chunk_size=10240)` under the hood to perform effective reads
+from the response stream and lower CPU usage. This default value has some implications if the server you read from
+sends responses of some fixed size and expects your reaction in-between. Make sure you check behaviour with
+`chunk_size=1` before filing any bugs.
+
 ### Stream a URL (with visitor)
 
 #### urllib
@@ -267,6 +272,8 @@ def visitor(item, path):
 with requests.get('http://example.com/data.json', stream=True) as response:
     json_stream.requests.visit(response, visitor)
 ```
+
+The `chunk_size` note applies to `visit()`, please see above.
 
 ### Encoding json-stream objects
 
