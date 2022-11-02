@@ -247,6 +247,18 @@ is that `requests` will buffer each read until up to 10k bytes have been read be
 to `json_stream`. If you need to consume data more responsively the only option is to tune `chunk_size` back
 to 1 to disable buffering.
 
+#### httpx
+
+```python
+import httpx
+import json_stream.httpx
+
+with httpx.Client() as client, client.stream('GET', 'http://example.com/data.json') as response:
+    data = json_stream.httpx.load(response)
+```
+
+This works just like the `requests` version above, but with the [httpx](https://pypi.org/project/httpx/) library.
+
 ### Stream a URL (with visitor)
 
 #### urllib
@@ -276,6 +288,19 @@ with requests.get('http://example.com/data.json', stream=True) as response:
 ```
 
 The [`chunk_size`](#requests-chunk-size) note also applies to `visit()`.
+
+#### httpx
+
+```python
+import httpx
+import json_stream.httpx
+
+def visitor(item, path):
+    print(f"{item} at path {path}")
+    
+with httpx.Client() as client, client.stream('GET', 'http://example.com/data.json') as response:
+    json_stream.httpx.visit(response, visitor)
+```
 
 ### Encoding json-stream objects
 
