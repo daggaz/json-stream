@@ -6,6 +6,7 @@
 [![Donate](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-blue.svg)](https://www.buymeacoffee.com/daggaz)
 
 Simple streaming JSON parser and encoder.
+Can stream from files, memory, or URLs.
 
 When [reading](#reading) JSON data, `json-stream` can decode JSON data in 
 a streaming manner.
@@ -220,6 +221,12 @@ z at path ('xxxx', 3)
 
 ### Stream a URL
 
+`json_stream` knows how to stream directly from a URL using a variety of packages.
+Supported packages include:
+- Python's batteries-included [`urllib`](https://docs.python.org/3/library/urllib.html) package
+- The popular [`requests`](https://pypi.org/project/requests/) library
+- The newer [httpx](https://pypi.org/project/httpx/) library
+
 #### urllib
 
 ```python
@@ -257,9 +264,11 @@ with httpx.Client() as client, client.stream('GET', 'http://example.com/data.jso
     data = json_stream.httpx.load(response)
 ```
 
-This works just like the `requests` version above, but with the [httpx](https://pypi.org/project/httpx/) library.
+This works just like the `requests` version above, including caveats about `chunk_size`.
 
 ### Stream a URL (with visitor)
+
+The visitor pattern also works with URL streams.
 
 #### urllib
 
