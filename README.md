@@ -240,10 +240,12 @@ with requests.get('http://example.com/data.json', stream=True) as response:
     data = json_stream.requests.load(response)
 ```
 
-Function `load(Response)` uses `response.iter_content(chunk_size=10240)` under the hood to perform effective reads
-from the response stream and lower CPU usage. This default value has some implications if the server you read from
-sends responses of some fixed size and expects your reaction in-between. Make sure you check behaviour with
-`chunk_size=1` before filing any bugs.
+<a id="requests-chunk-size"></a>
+Note: these functions use `response.iter_content()` under the hood with a `chunk_size` of 10k bytes. This default
+allows us to perform effective reads from the response stream and lower CPU usage. The drawback to this
+is that `requests` will buffer each read until up to 10k bytes have been read before passing the data back 
+to `json_stream`. If you need to consume data more responsively the only option is to tune `chunk_size` back
+to 1 to disable buffering.
 
 ### Stream a URL (with visitor)
 
@@ -273,7 +275,7 @@ with requests.get('http://example.com/data.json', stream=True) as response:
     json_stream.requests.visit(response, visitor)
 ```
 
-The `chunk_size` note applies to `visit()`, please see above.
+The [`chunk_size`](#requests-chunk-size) note also applies to `visit()`.
 
 ### Encoding json-stream objects
 
