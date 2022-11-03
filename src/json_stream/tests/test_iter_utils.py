@@ -1,0 +1,17 @@
+import io
+from unittest import TestCase
+from json_stream.iter_utils import IterableStream
+
+
+class TestIterableStream(TestCase):
+    def test_read(self):
+        # create some chunks of binary data
+        data = (
+            b"a" * io.DEFAULT_BUFFER_SIZE,
+            b"b" * (io.DEFAULT_BUFFER_SIZE + 1),
+            b"c" * (io.DEFAULT_BUFFER_SIZE - 1),
+        )
+
+        # stream it and check the result
+        stream = IterableStream(data)
+        self.assertEqual(stream.read(), b"".join(data))

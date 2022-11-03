@@ -4,7 +4,7 @@ from itertools import zip_longest
 from unittest import TestCase
 from unittest.mock import Mock
 
-from json_stream.requests import load, visit
+from json_stream.httpx import load, visit
 
 
 class TestLoad(TestCase):
@@ -13,19 +13,18 @@ class TestLoad(TestCase):
     @staticmethod
     def grouper(iterable, n):
         """Collect data into fixed-length chunks or blocks"""
-        # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
         args = [iter(iterable)] * n
         return zip_longest(*args, fillvalue="")
 
     def _create_mock_response(self):
-        # requests iter_content returns an iterable of bytes
+        # httpx iter_bytes returns an iterable of bytes
         response = Mock()
         data = json.dumps({
             "a": "a" * io.DEFAULT_BUFFER_SIZE,
             "b": "b",
         })
         content = ("".join(chunk).encode() for chunk in self.grouper(data, 1024))
-        response.iter_content.return_value = content
+        response.iter_bytes.return_value = content
         return response
 
     def _assertDataOkay(self, data):

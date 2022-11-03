@@ -36,6 +36,7 @@ funding = "https://www.buymeacoffee.com/daggaz"
 
 [project.optional-dependencies]
 requests = ["requests"]
+httpx = ["httpx"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

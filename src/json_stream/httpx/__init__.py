@@ -9,7 +9,7 @@ CONTENT_CHUNK_SIZE = 10 * 1024
 
 
 def _to_file(response, chunk_size):
-    return io.BufferedReader(IterableStream(response.iter_content(chunk_size=chunk_size)))
+    return io.BufferedReader(IterableStream(response.iter_bytes(chunk_size=chunk_size)))
 
 
 def load(response, persistent=False, tokenizer=default_tokenizer, chunk_size=CONTENT_CHUNK_SIZE):
