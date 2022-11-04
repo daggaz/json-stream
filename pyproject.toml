@@ -29,10 +29,10 @@ dependencies = ["json-stream-rs-tokenizer >= 0.4.8"]
 dynamic = ["readme"]
 
 [project.urls]
-homepage = "https://github.com/daggaz/json-stream"
-repository = "https://github.com/daggaz/json-stream"
-tracker = "https://github.com/daggaz/json-stream/issues"
-funding = "https://www.buymeacoffee.com/daggaz"
+Homepage = "https://github.com/daggaz/json-stream"
+Repository = "https://github.com/daggaz/json-stream"
+Tracker = "https://github.com/daggaz/json-stream/issues"
+Funding = "https://www.buymeacoffee.com/daggaz"
 
 [project.optional-dependencies]
 requests = ["requests"]

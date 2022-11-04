@@ -6,11 +6,11 @@
 [![Donate](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-blue.svg)](https://www.buymeacoffee.com/daggaz)
 
 Simple streaming JSON parser and encoder.
-Can stream from files, memory, or URLs.
 
 When [reading](#reading) JSON data, `json-stream` can decode JSON data in 
 a streaming manner, providing a pythonic dict/list-like interface, or a
-[visitor-based interfeace](#visitor).
+[visitor-based interfeace](#visitor). Can stream from files, [URLs](#urls) 
+or [iterators](#iterators).
 
 When [writing](#writing) JSON data, `json-stream` can stream JSON objects 
 as you generate them.
@@ -37,15 +37,18 @@ Features:
 * [native code parsing speedups](#rust-tokenizer) for most common platforms 
 * pure python fallback if native extensions not available
 
-Unlike `json.load()`, `json-stream` can _stream_ JSON data from any file-like
-object. This has the following benefits:
+Unlike `json.load()`, `json-stream` can _stream_ JSON data from any file-like or
+[iterable](#iterators) object. This has the following benefits:
 
 * it does not require the whole json document to be read into memory up-front
 * it can start producing data before the entire document has finished loading
 * it only requires enough memory to hold the data currently being parsed
 
-There are specific integrations for streaming JSON data from URLs using the 
+There are specific integrations for streaming JSON data from [URLs](#urls) using the 
 [`requests`](#requests), [`httpx`](#httpx), or [`urllib`](#urllib).
+
+The objects that `json-stream` produces can be [re-output](#encoding-json-stream-objects)
+using `json.dump()` with a little work.
 
 ## Usage
 
@@ -223,7 +226,7 @@ z at path ('xxxx', 3)
 [] at path ('xxxx', 5)
 ```
 
-### Stream a URL
+### <a id="urls"></a> Stream a URL
 
 `json_stream` knows how to stream directly from a URL using a variety of packages.
 Supported packages include:
@@ -327,10 +330,29 @@ with httpx.Client() as client, client.stream('GET', 'http://example.com/data.jso
     json_stream.httpx.visit(response, visitor)
 ```
 
-### Encoding json-stream objects
+### <a id="iterators"></a> Stream an iterable
 
-You can encode _persistent_ json-stream `dict`-like and `list`-like object back to JSON using the built-in
-`json.dump()` or `json.dumps` functions, but with a little additional work:
+`json-stream`'s parsing functions can take any iterable object that produces encoded JSON as
+`byte` objects.
+
+```python
+import json_stream
+
+def some_iterator():
+    yield b'{"some":'
+    yield b' "JSON"}'
+
+data = json_stream.load(some_iterator())
+assert data['some'] == "JSON"
+```
+
+This is actually how the [`requests`](#requests) and [`httpx`](#httpx) extensions work, as
+both libraries provide methods to iterate over the response content.
+
+### <a id="encoding-json-stream-objects"></a> Encoding json-stream objects
+
+You can re-output (encode) _persistent_ json-stream `dict`-like and `list`-like object back to JSON using the built-in
+`json.dump()` or `json.dumps()` functions, but with a little additional work:
 
 ```python
 import json

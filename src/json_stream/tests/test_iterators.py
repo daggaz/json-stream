@@ -1,6 +1,6 @@
 import io
 from unittest import TestCase
-from json_stream.iter_utils import IterableStream
+from json_stream.iterators import IterableStream
 
 
 class TestIterableStream(TestCase):

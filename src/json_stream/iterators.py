@@ -17,3 +17,9 @@ class IterableStream(io.RawIOBase):
 
     def readable(self):
         return True
+
+
+def ensure_file(fp_or_iterable):
+    if hasattr(fp_or_iterable, 'read'):
+        return fp_or_iterable
+    return io.BufferedReader(IterableStream(fp_or_iterable))  # will raise TypeError if not iterable
