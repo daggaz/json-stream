@@ -9,10 +9,11 @@ Simple streaming JSON parser and encoder.
 Can stream from files, memory, or URLs.
 
 When [reading](#reading) JSON data, `json-stream` can decode JSON data in 
-a streaming manner.
+a streaming manner, providing a pythonic dict/list-like interface, or a
+[visitor-based interfeace](#visitor).
 
 When [writing](#writing) JSON data, `json-stream` can stream JSON objects 
-as you produce them.
+as you generate them.
 
 These techniques allow you to [reduce memory consumption and 
 latency](#standard-json-problems).
@@ -36,12 +37,15 @@ Features:
 * [native code parsing speedups](#rust-tokenizer) for most common platforms 
 * pure python fallback if native extensions not available
 
-Unlike `json.load()`, `json-stream` can _stream_ JSON data from a file-like
+Unlike `json.load()`, `json-stream` can _stream_ JSON data from any file-like
 object. This has the following benefits:
 
 * it does not require the whole json document to be read into memory up-front
 * it can start producing data before the entire document has finished loading
 * it only requires enough memory to hold the data currently being parsed
+
+There are specific integrations for streaming JSON data from URLs using the 
+[`requests`](#requests), [`httpx`](#httpx), or [`urllib`](#urllib).
 
 ## Usage
 
@@ -188,7 +192,7 @@ print(data["b"])  # prints 2
 print(x[0])  # will raise exception
 ```
 
-### visitor pattern
+### <a id="visitor"></a>visitor pattern
 
 You can also parse using a visitor-style approach where a function you supply
 is called for each data item as it is parsed (depth-first).
@@ -223,11 +227,14 @@ z at path ('xxxx', 3)
 
 `json_stream` knows how to stream directly from a URL using a variety of packages.
 Supported packages include:
-- Python's batteries-included [`urllib`](https://docs.python.org/3/library/urllib.html) package
-- The popular [`requests`](https://pypi.org/project/requests/) library
-- The newer [httpx](https://pypi.org/project/httpx/) library
+- Python's batteries-included [`urllib`](#urllib) package
+- The popular [`requests`](#requests) library
+- The newer [`httpx`](#httpx) library
 
-#### urllib
+#### <a id="urllib"></a> urllib
+
+[`urllib`](https://docs.python.org/3/library/urllib.html)'s response objects are already
+file-like objects, so we can just pass them directly to `json-stream`.
 
 ```python
 import urllib.request
@@ -237,7 +244,10 @@ with urllib.request.urlopen('http://example.com/data.json') as response:
     data = json_stream.load(response)
 ```
 
-#### requests
+#### <a id="requests"></a>requests
+
+To stream JSON data from [`requests`](https://requests.readthedocs.io/en/latest/), you must
+pass `stream=True` when making a request, and call `json_stream.requests.load()` passing the response. 
 
 ```python
 import requests
@@ -248,13 +258,18 @@ with requests.get('http://example.com/data.json', stream=True) as response:
 ```
 
 <a id="requests-chunk-size"></a>
-Note: these functions use `response.iter_content()` under the hood with a `chunk_size` of 10k bytes. This default
-allows us to perform effective reads from the response stream and lower CPU usage. The drawback to this
-is that `requests` will buffer each read until up to 10k bytes have been read before passing the data back 
-to `json_stream`. If you need to consume data more responsively the only option is to tune `chunk_size` back
-to 1 to disable buffering.
+Note: these functions use
+[`response.iter_content()`](https://requests.readthedocs.io/en/latest/api/#requests.Response.iter_content) under the
+hood with a `chunk_size` of 10k bytes. This default allows us to perform effective reads from the response stream and 
+lower CPU usage. The drawback to this is that `requests` will buffer each read until up to 10k bytes have been read 
+before passing the data back to `json_stream`. If you need to consume data more responsively the only option is to tune
+`chunk_size` back to 1 to disable buffering.
 
-#### httpx
+#### <a id="httpx"></a> httpx
+
+To stream JSON data from [`httpx`](https://www.python-httpx.org/), you must call
+[`stream()`](https://www.python-httpx.org/quickstart/#streaming-responses) when
+making your request, and call `json_stream.httpx.load()` passing the response.
 
 ```python
 import httpx
@@ -264,7 +279,8 @@ with httpx.Client() as client, client.stream('GET', 'http://example.com/data.jso
     data = json_stream.httpx.load(response)
 ```
 
-This works just like the `requests` version above, including caveats about `chunk_size`.
+Under the hood, this works similarly to the [`requests`](#requests) version above, including 
+the caveat about [`chunk_size`](#requests-chunk-size).
 
 ### Stream a URL (with visitor)
 
