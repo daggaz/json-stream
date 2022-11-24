@@ -657,7 +657,7 @@ path lookup based interface.
 
 # Contributing
 
-See the project [contribution guide](CONTRIBUTING.md).
+See the project [contribution guide](https://github.com/daggaz/json-stream/blob/master/CONTRIBUTING.md).
 
 # Donations
 
