@@ -644,6 +644,17 @@ generate SAX style events while parsing JSON.
 * No pure python implementation
 * It does not provide a pythonic `dict`/`list`-like interface 
 
+## jsonslicer
+
+[jsonslicer](https://github.com/AMDmi3/jsonslicer) is another wrapper around the YAJL C library with a
+path lookup based interface.
+
+### Why not jsonslicer?
+
+* No pure python implementation
+* It does not provide a pythonic `dict`/`list`-like interface
+* Must know all data paths lookup in advance (or make multiple passes)
+
 # Contributing
 
 See the project [contribution guide](CONTRIBUTING.md).
