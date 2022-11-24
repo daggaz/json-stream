@@ -636,23 +636,17 @@ parsing a simple JSON list as a stream.
 
 ## Yajl-Py
 
-[Yajl-Py](https://pykler.github.io/yajl-py/) is a wrapper around the Yajl JSON library that can be used to 
+[Yajl-Py](https://pykler.github.io/yajl-py/) is a wrapper around the C YAJL JSON library that can be used to 
 generate SAX style events while parsing JSON.
 
 ### Why not Yajl-Py?
 
-* It's not pure python
+* No pure python implementation
 * It does not provide a pythonic `dict`/`list`-like interface 
 
-# Build
-```bash
-cd ~/sources/json-stream/
-python3 -m venv ~/build/
-. ~/build/bin/activate
-pip install --upgrade build twine
-python -m build
-twine upload dist/*
-```
+# Contributing
+
+See the project [contribution guide](CONTRIBUTING.md).
 
 # Donations
 

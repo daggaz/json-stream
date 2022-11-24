@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "json-stream"
-version = "2.1.0"
+version = "2.1.1"
 authors = [
     {name = "Jamie Cockburn", email="jamie_cockburn@hotmail.co.uk"},
 ]
