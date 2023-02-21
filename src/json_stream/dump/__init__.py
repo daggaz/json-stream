@@ -1,16 +1,15 @@
 import json
 
-from json_stream.base import StreamingJSONObject, StreamingJSONList
+from json_stream import to_standard_types
+from json_stream.base import StreamingJSONBase
 
 _original_default = json.JSONEncoder().default
 
 
 class JSONStreamEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, StreamingJSONObject):
-            return dict(obj)
-        if isinstance(obj, StreamingJSONList):
-            return list(obj)
+        if isinstance(obj, StreamingJSONBase):
+            return to_standard_types(obj)
         return _original_default(obj)
 
     def __enter__(self):
