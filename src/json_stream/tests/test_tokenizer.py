@@ -8,6 +8,8 @@ Copyright (c) 2019 Daniel Yule
 from io import StringIO
 from unittest import TestCase
 
+import pytest
+
 from json_stream.tokenizer import tokenize, TokenType
 
 
@@ -85,6 +87,14 @@ class TestJsonTokenization(TestCase):
         self.assertRaises(ValueError, self.tokenize_sequence, "\"\\2\"")
         self.assertRaises(ValueError, self.tokenize_sequence, "\"\\!\"")
         self.assertRaises(ValueError, self.tokenize_sequence, "\"\\u!\"")
+
+    @pytest.mark.xfail(
+        reason="https://github.com/daggaz/json-stream/issues/35",
+        strict=True,
+    )
+    def test_unterminated_strings(self):
+        self.assertRaises(ValueError, self.tokenize_sequence, "'unterminated")
+        self.assertRaises(ValueError, self.tokenize_sequence, '"unterminated')
 
     def test_sequence(self):
         result = [token for token in tokenize(StringIO("123 \"abc\":{}"))]
