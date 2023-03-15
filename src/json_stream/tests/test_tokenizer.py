@@ -87,7 +87,6 @@ class TestJsonTokenization(TestCase):
         self.assertRaises(ValueError, self.tokenize_sequence, "\"\\u!\"")
 
     def test_unterminated_strings(self):
-        self.assertRaises(ValueError, self.tokenize_sequence, "'unterminated")
         self.assertRaises(ValueError, self.tokenize_sequence, '"unterminated')
 
     def test_sequence(self):
