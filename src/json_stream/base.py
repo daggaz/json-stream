@@ -13,6 +13,8 @@ class TransientAccessException(Exception):
 
 
 class StreamingJSONBase(ABC):
+    INCOMPLETE_ERROR = "Unexpected end of file"
+
     @classmethod
     def factory(cls, token, token_stream, persistent):
         if persistent:
@@ -47,6 +49,8 @@ class StreamingJSONBase(ABC):
             try:
                 item = self._load_item()
             except StopIteration:
+                if self.streaming:
+                    raise ValueError(self.INCOMPLETE_ERROR)
                 return
             yield item
 
@@ -134,6 +138,8 @@ class TransientStreamingJSONBase(StreamingJSONBase, ABC):
 
 
 class StreamingJSONList(StreamingJSONBase, ABC):
+    INCOMPLETE_ERROR = "Unterminated list at end of file"
+
     def _load_item(self):
         token_type, v = next(self._stream)
         if token_type == TokenType.OPERATOR:
@@ -198,6 +204,8 @@ class TransientStreamingJSONList(TransientStreamingJSONBase, StreamingJSONList):
 
 
 class StreamingJSONObject(StreamingJSONBase, ABC):
+    INCOMPLETE_ERROR = "Unterminated object at end of file"
+
     def _load_item(self):
         token_type, k = next(self._stream)
         if token_type == TokenType.OPERATOR:

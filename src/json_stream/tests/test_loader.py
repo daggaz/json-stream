@@ -214,3 +214,23 @@ class TestLoader(JSONLoadTestCase):
         self.assertEqual(data["b"], 2)  # would error if data was transient
         with self.assertRaisesRegex(TransientAccessException, "Index 0 already passed in this stream"):
             _ = list_[0]  # cannot access transient list
+
+    def test_unterminated_list(self):
+        with self.assertRaisesRegex(ValueError, "Unterminated list at end of file"):
+            load(StringIO('[')).read_all()
+        with self.assertRaisesRegex(ValueError, "Unterminated list at end of file"):
+            load(StringIO('[1')).read_all()
+        with self.assertRaisesRegex(ValueError, "Unterminated list at end of file"):
+            load(StringIO('[1,')).read_all()
+
+    def test_unterminated_object(self):
+        with self.assertRaisesRegex(ValueError, "Unterminated object at end of file"):
+            load(StringIO('{')).read_all()
+        with self.assertRaisesRegex(ValueError, "Unterminated object at end of file"):
+            load(StringIO('{"x"')).read_all()
+        with self.assertRaisesRegex(ValueError, "Unterminated object at end of file"):
+            load(StringIO('{"x":')).read_all()
+        with self.assertRaisesRegex(ValueError, "Unterminated object at end of file"):
+            load(StringIO('{"x": 1')).read_all()
+        with self.assertRaisesRegex(ValueError, "Unterminated object at end of file"):
+            load(StringIO('{"x": 1,')).read_all()
