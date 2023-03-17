@@ -44,6 +44,16 @@ class State:
     UNICODE_4 = 25
 
 
+class SpecialChar:
+    # Kind of a hack but simple: if we used the empty string "" to represent
+    # EOF, expressions like `char in "0123456789"` would be true for EOF, which
+    # is confusing. If we used a non-string, they would result in TypeErrors.
+    # By using the string "EOF", they work as expected. The only thing we have
+    # to be careful about is to not ever use "EOF" in any such strings used for
+    # char membership checking, which we have no reason to do anyway.
+    EOF = "EOF"
+
+
 def _guess_encoding(stream):
     # if it looks like a urllib response, get the charset from the headers (if any)
     try:
@@ -69,7 +79,7 @@ def tokenize(stream):
     stream = _ensure_text(stream)
 
     def is_delimiter(char):
-        return char.isspace() or char in "{}[]:,"
+        return char.isspace() or char in "{}[]:," or char == SpecialChar.EOF
 
     token = []
     charcode = 0
@@ -117,7 +127,7 @@ def tokenize(stream):
                 next_state = State.TRUE_1
             elif char == "n":
                 next_state = State.NULL_1
-            elif not char.isspace():
+            elif not char.isspace() and not char == SpecialChar.EOF:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
         elif state == State.INTEGER:
             if char in "0123456789":
@@ -256,6 +266,8 @@ def tokenize(stream):
                 next_state = State.STRING_END
             elif char == "\\":
                 next_state = State.STRING_ESCAPE
+            elif char == SpecialChar.EOF:
+                raise ValueError("Unterminated string at end of file")
             else:
                 add_char = True
         elif state == State.STRING_END:
@@ -356,6 +368,6 @@ def tokenize(stream):
         if advance:
             char = stream.read(1)
             index += 1
-    process_char(" ", charcode)
+    process_char(SpecialChar.EOF, charcode)
     if completed:
         yield now_token

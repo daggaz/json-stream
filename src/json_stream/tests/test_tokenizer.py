@@ -86,6 +86,10 @@ class TestJsonTokenization(TestCase):
         self.assertRaises(ValueError, self.tokenize_sequence, "\"\\!\"")
         self.assertRaises(ValueError, self.tokenize_sequence, "\"\\u!\"")
 
+    def test_unterminated_strings(self):
+        with self.assertRaisesRegex(ValueError, "Unterminated string at end of file"):
+            self.tokenize_sequence('"unterminated')
+
     def test_sequence(self):
         result = [token for token in tokenize(StringIO("123 \"abc\":{}"))]
         self.assertEqual(result, [(2, 123), (1, 'abc'), (0, ':'), (0, '{'), (0, '}')])
