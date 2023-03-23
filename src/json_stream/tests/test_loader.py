@@ -215,6 +215,18 @@ class TestLoader(JSONLoadTestCase):
         with self.assertRaisesRegex(TransientAccessException, "Index 0 already passed in this stream"):
             _ = list_[0]  # cannot access transient list
 
+    def test_primitives(self):
+        primitives = (
+            ("true", True),
+            ("false", False),
+            ("123", 123),
+            ("12.3", 12.3),
+            ('"string"', "string"),
+        )
+        for primitive, expected in primitives:
+            result = load(StringIO(primitive))
+            self.assertEqual(expected, result)
+
     def test_unterminated_list(self):
         with self.assertRaisesRegex(ValueError, "Unterminated list at end of file"):
             load(StringIO('[')).read_all()
