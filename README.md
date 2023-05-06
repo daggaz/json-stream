@@ -63,8 +63,8 @@ It is also possible to "mix" the modes as you consume the data.
 
 This mode is appropriate if you can consume the data iteratively. You cannot 
 move backwards through the stream to read data that has already been skipped
-over. It is the mode you **must** use if you want process large amounts of
-JSON data without consuming large amounts of memory required.
+over. It is the mode you **must** use if you want to process large amounts of
+JSON data without consuming large amounts of memory.
 
 In transient mode, only the data currently being read is stored in memory. Any
 data previously read from the stream is discarded (it's up to you what to do 
