@@ -5,6 +5,7 @@ https://github.com/danielyule/naya
 
 Copyright (c) 2019 Daniel Yule
 """
+import re
 from io import StringIO
 from unittest import TestCase
 
@@ -29,8 +30,8 @@ class TestJsonTokenization(TestCase):
         self.assertEqual(expected, token)
         self.assertEqual(ttype, TokenType.OPERATOR)
 
-    def assertStringEquals(self, expected, actual):
-        token_list = [token for token in tokenize(StringIO('"{}"'.format(actual)))]
+    def assertStringEquals(self, *, expected, json_input):
+        token_list = self.tokenize_sequence(json_input)
         self.assertEqual(1, len(token_list))
         ttype, token = token_list[0]
         self.assertEqual(expected, token)
@@ -67,31 +68,37 @@ class TestJsonTokenization(TestCase):
         self.assertOperatorEquals(",", ",")
 
     def test_string_parsing(self):
-        self.assertStringEquals("word", "word")
-        self.assertStringEquals("with\tescape", "with\\tescape")
-        self.assertStringEquals("with\n a different escape", "with\\n a different escape")
-        self.assertStringEquals("using a \bbackspace", "using a \\bbackspace")
-        self.assertStringEquals("now we have \f a formfeed", "now we have \\f a formfeed")
-        self.assertStringEquals("\"a quote\"", "\\\"a quote\\\"")
-        self.assertStringEquals("", "")
-        self.assertStringEquals("/", "\\/")
-        self.assertStringEquals("this char: \u0202", "this char: \\u0202")
-        self.assertStringEquals("\uaf78", "\\uaf78")
-        self.assertStringEquals("\u8A0b", "\\u8A0b")
-        self.assertStringEquals("\ub3e7", "\\uB3e7")
-        self.assertStringEquals("\u12ef", "\\u12eF")
-        self.assertRaises(ValueError, self.tokenize_sequence, "\"\\uay76\"")
-        self.assertRaises(ValueError, self.tokenize_sequence, "\"\\h\"")
-        self.assertRaises(ValueError, self.tokenize_sequence, "\"\\2\"")
-        self.assertRaises(ValueError, self.tokenize_sequence, "\"\\!\"")
-        self.assertRaises(ValueError, self.tokenize_sequence, "\"\\u!\"")
+        self.assertStringEquals(expected="word", json_input=r'"word"')
+        self.assertStringEquals(expected="with\tescape", json_input=r'"with\tescape"')
+        self.assertStringEquals(expected="with\n a different escape", json_input=r'"with\n a different escape"')
+        self.assertStringEquals(expected="using a \bbackspace", json_input=r'"using a \bbackspace"')
+        self.assertStringEquals(expected="now we have \f a formfeed", json_input=r'"now we have \f a formfeed"')
+        self.assertStringEquals(expected="\"a quote\"", json_input=r'"\"a quote\""')
+        self.assertStringEquals(expected="", json_input=r'""')
+        self.assertStringEquals(expected="/", json_input=r'"\/"')
+        self.assertStringEquals(expected="this char at end: Ȃ", json_input=r'"this char at end: \u0202"')
+        self.assertStringEquals(expected="this char in middle: Ȃ.", json_input=r'"this char in middle: \u0202."')
+        self.assertStringEquals(expected="꽸", json_input=r'"\uaf78"')
+        self.assertStringEquals(expected="訋", json_input=r'"\u8A0b"')
+        self.assertStringEquals(expected="돧", json_input=r'"\uB3e7"')
+        self.assertStringEquals(expected="ዯ", json_input=r'"\u12eF"')
+        with self.assertRaisesRegex(ValueError, re.escape(r"Invalid character code: y at index 4")):
+            self.tokenize_sequence(r'"\uay76"')
+        with self.assertRaisesRegex(ValueError, "Invalid string escape: h at index 2"):
+            self.tokenize_sequence(r'"\h"')
+        with self.assertRaisesRegex(ValueError, "Invalid string escape: 2 at index 2"):
+            self.tokenize_sequence(r'"\2"')
+        with self.assertRaisesRegex(ValueError, "Invalid string escape: ! at index 2"):
+            self.tokenize_sequence(r'"\!"')
+        with self.assertRaisesRegex(ValueError, "Invalid character code: ! at index 3"):
+            self.tokenize_sequence(r'"\u!"')
 
     def test_unterminated_strings(self):
         with self.assertRaisesRegex(ValueError, "Unterminated string at end of file"):
             self.tokenize_sequence('"unterminated')
 
     def test_sequence(self):
-        result = [token for token in tokenize(StringIO("123 \"abc\":{}"))]
+        result = self.tokenize_sequence("123 \"abc\":{}")
         self.assertEqual(result, [(2, 123), (1, 'abc'), (0, ':'), (0, '{'), (0, '}')])
 
         # Borrowed from http://en.wikipedia.org/wiki/JSON
@@ -121,7 +128,7 @@ class TestJsonTokenization(TestCase):
           "children": [],
           "spouse": null
         }"""
-        result = [token for token in tokenize(StringIO(big_file))]
+        result = self.tokenize_sequence(big_file)
         expected = [(0, '{'), (1, 'firstName'), (0, ':'), (1, 'John'), (0, ','), (1, 'lastName'), (0, ':'),
                     (1, 'Smith'), (0, ','), (1, 'isAlive'), (0, ':'), (3, True), (0, ','), (1, 'isDead'), (0, ':'),
                     (3, False), (0, ','), (1, 'age'), (0, ':'),
@@ -138,9 +145,9 @@ class TestJsonTokenization(TestCase):
                             '":167.6,"address":{"streetAddress":"21 2nd Street","city":"New York","state":"NY","posta' \
                             'lCode":"10021-3100"},"phoneNumbers":[{"type":"home","number":"212 555-1234"},{"type":"of' \
                             'fice","number":"646 555-4567"}],"children":[],"spouse":null}'
-        result = [token for token in tokenize(StringIO(big_file_no_space))]
+        result = self.tokenize_sequence(big_file_no_space)
         self.assertListEqual(result, expected)
-        result = [token for token in tokenize(StringIO("854.6,123"))]
+        result = self.tokenize_sequence("854.6,123")
         self.assertEqual(result, [(2, 854.6), (0, ','), (2, 123)])
         self.assertRaises(ValueError, self.tokenize_sequence, "123\"text\"")
         self.assertRaises(ValueError, self.tokenize_sequence, "23.9e10true")
