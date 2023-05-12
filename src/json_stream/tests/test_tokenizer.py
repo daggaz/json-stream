@@ -82,7 +82,7 @@ class TestJsonTokenization(TestCase):
         self.assertStringEquals(expected="訋", json_input=r'"\u8A0b"')
         self.assertStringEquals(expected="돧", json_input=r'"\uB3e7"')
         self.assertStringEquals(expected="ዯ", json_input=r'"\u12eF"')
-        with self.assertRaisesRegex(ValueError, re.escape(r"Invalid character code: y at index 4")):
+        with self.assertRaisesRegex(ValueError, re.escape(r"Invalid unicode literal: \uay76 at index 6")):
             self.tokenize_sequence(r'"\uay76"')
         with self.assertRaisesRegex(ValueError, "Invalid string escape: h at index 2"):
             self.tokenize_sequence(r'"\h"')
@@ -90,7 +90,7 @@ class TestJsonTokenization(TestCase):
             self.tokenize_sequence(r'"\2"')
         with self.assertRaisesRegex(ValueError, "Invalid string escape: ! at index 2"):
             self.tokenize_sequence(r'"\!"')
-        with self.assertRaisesRegex(ValueError, "Invalid character code: ! at index 3"):
+        with self.assertRaisesRegex(ValueError, "Unterminated unicode literal at end of file"):
             self.tokenize_sequence(r'"\u!"')
 
     def test_unterminated_strings(self):
@@ -152,3 +152,50 @@ class TestJsonTokenization(TestCase):
         self.assertRaises(ValueError, self.tokenize_sequence, "123\"text\"")
         self.assertRaises(ValueError, self.tokenize_sequence, "23.9e10true")
         self.assertRaises(ValueError, self.tokenize_sequence, "\"test\"56")
+
+    def test_unicode_literal(self):
+        result = list(tokenize(StringIO(r'"\u00c4"')))
+        self.assertListEqual(result, [(1, 'Ä')])
+
+    def test_unicode_literal_truncated(self):
+        with self.assertRaisesRegex(ValueError, re.escape(r'Invalid unicode literal: \u00c" at index 6')):
+            list(tokenize(StringIO(r'"\u00c"')))
+
+    def test_unicode_literal_bad_hex(self):
+        with self.assertRaisesRegex(ValueError, re.escape(r"Invalid unicode literal: \u00x4 at index 6")):
+            list(tokenize(StringIO(r'"\u00x4"')))
+
+    def test_unicode_surrogate_pair_literal(self):
+        result = list(tokenize(StringIO(r'"\ud834\udd1e"')))
+        self.assertListEqual(result, [(1, '𝄞')])
+
+    def test_unicode_surrogate_pair_unpaired(self):
+        with self.assertRaisesRegex(ValueError, "Unpaired UTF-16 surrogate at index 7"):
+            list(tokenize(StringIO(r'"\ud834"')))
+        with self.assertRaisesRegex(ValueError, "Unpaired UTF-16 surrogate at end of file"):
+            list(tokenize(StringIO(r'"\ud834')))
+        with self.assertRaisesRegex(ValueError, "Unpaired UTF-16 surrogate at index 8"):
+            list(tokenize(StringIO(r'"\ud834\x')))
+        with self.assertRaisesRegex(ValueError, "Unpaired UTF-16 surrogate at end of file"):
+            list(tokenize(StringIO(r'"\ud834' + '\\')))
+
+    def test_unicode_surrogate_pair_non_surrogate(self):
+        with self.assertRaisesRegex(ValueError, "Second half of UTF-16 surrogate pair is not a surrogate! at index 12"):
+            list(tokenize(StringIO(r'"\ud834\u00c4"')))
+
+    def test_unicode_surrogate_pair_literal_truncated(self):
+        with self.assertRaisesRegex(ValueError, re.escape(r'Invalid unicode literal: \u00c" at index 12')):
+            list(tokenize(StringIO(r'"\ud834\u00c"')))
+
+    def test_unicode_surrogate_pair_literal_bad_hex(self):
+        with self.assertRaisesRegex(ValueError, re.escape(r"Invalid unicode literal: \u00x4 at index 12")):
+            list(tokenize(StringIO(r'"\ud834\u00x4"')))
+
+    def test_unicode_surrogate_pair_literal_invalid(self):
+        message = re.escape(r"Error decoding UTF-16 surrogate pair \ud834\ud834 at index 12")
+        with self.assertRaisesRegex(ValueError, message):
+            list(tokenize(StringIO(r'"\ud834\ud834"')))
+
+    def test_unicode_surrogate_pair_literal_unterminated(self):
+        with self.assertRaisesRegex(ValueError, r"Unterminated unicode literal at end of file"):
+            list(tokenize(StringIO(r'"\ud834\ud83')))

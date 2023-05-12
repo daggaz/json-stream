@@ -1,4 +1,5 @@
 import copy
+import json
 from io import StringIO
 
 from json_stream import load
@@ -246,3 +247,13 @@ class TestLoader(JSONLoadTestCase):
             load(StringIO('{"x": 1')).read_all()
         with self.assertRaisesRegex(ValueError, "Unterminated object at end of file"):
             load(StringIO('{"x": 1,')).read_all()
+
+    def test_unicode(self):
+        data = json.dumps('Ä')
+        result = load(StringIO(data))
+        self.assertEqual(result, 'Ä')
+
+    def test_non_bmp_unicode(self):
+        data = json.dumps('𝄞')
+        result = load(StringIO(data))
+        self.assertEqual(result, '𝄞')
