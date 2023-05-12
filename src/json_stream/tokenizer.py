@@ -275,7 +275,7 @@ def tokenize(stream):
                 advance = False
                 next_state = State.WHITESPACE
             else:
-                raise ValueError("Expected whitespace or an operator after strin.  Got '{}'".format(char))
+                raise ValueError("Expected whitespace or an operator after string.  Got '{}'".format(char))
         elif state == State.STRING_ESCAPE:
             next_state = State.STRING
             if char == "\\" or char == "\"":
