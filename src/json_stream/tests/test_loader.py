@@ -106,8 +106,8 @@ class TestLoader(JSONLoadTestCase):
 
         # Access out of order
         data = load(StringIO(json_str), persistent=True)
-        self.assertEqual(data[0], 1)
         self.assertTrue(data[1])
+        self.assertEqual(data[0], 1)
         self.assertEqual(data[2], "")
         with self.assertRaises(IndexError):
             _ = data[3]
