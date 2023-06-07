@@ -78,7 +78,7 @@ def _ensure_text(stream):
     return stream
 
 
-def tokenize(stream):
+def tokenize(stream, *, buffering=-1, **_):
     stream = _ensure_text(stream)
 
     def is_delimiter(char):
@@ -365,9 +365,19 @@ def tokenize(stream):
 
         return advance, next_state
     state = State.WHITESPACE
-    c = stream.read(1)
-    index = 0
-    while c:
+    if not buffering:
+        buffering = 1
+    elif buffering <= 0:
+        buffering = io.DEFAULT_BUFFER_SIZE
+    buffering = buffering.__index__()
+    buffer = stream.read(buffering)
+    c = None
+    index = -1
+    advance = True
+    while buffer:
+        if advance:
+            c, buffer = buffer[0], buffer[1:] or stream.read(buffering)
+            index += 1
         try:
             advance, state = process_char(c)
         except ValueError as e:
@@ -376,9 +386,6 @@ def tokenize(stream):
             completed = False
             token = []
             yield now_token
-        if advance:
-            c = stream.read(1)
-            index += 1
     process_char(SpecialChar.EOF)
     if completed:
         yield now_token

@@ -12,9 +12,9 @@ class TestBuffering(TestCase):
         self._test_buffering(tokenizer=rust_tokenizer_or_raise())
 
     def test_buffering_python_tokenizer(self):
-        self._test_buffering(tokenizer=tokenize)
+        self._test_buffering(tokenizer=tokenize, buffering=0)
 
-    def _test_buffering(self, tokenizer):
+    def _test_buffering(self, tokenizer, **load_args):
         happenings = []
 
         def data_in_chunks(data, chunk_size=15):
@@ -24,7 +24,7 @@ class TestBuffering(TestCase):
                 yield part
 
         json_string = b'{"tasks":[{"id":1,"title":"task1"},{"id":2,"title":"task2"},{"id":3,"title":"task3"}]}'
-        stream = json_stream.load(data_in_chunks(json_string), tokenizer=tokenizer)
+        stream = json_stream.load(data_in_chunks(json_string), tokenizer=tokenizer, **load_args)
 
         for task in stream["tasks"]:
             happenings.append(('item', to_standard_types(task)))
