@@ -365,9 +365,14 @@ def tokenize(stream):
 
         return advance, next_state
     state = State.WHITESPACE
-    c = stream.read(1)
-    index = 0
-    while c:
+    buffer = stream.read(io.DEFAULT_BUFFER_SIZE)
+    c = None
+    index = -1
+    advance = True
+    while buffer:
+        if advance:
+            c, buffer = buffer[0], buffer[1:] or stream.read(io.DEFAULT_BUFFER_SIZE)
+            index += 1
         try:
             advance, state = process_char(c)
         except ValueError as e:
@@ -376,9 +381,6 @@ def tokenize(stream):
             completed = False
             token = []
             yield now_token
-        if advance:
-            c = stream.read(1)
-            index += 1
     process_char(SpecialChar.EOF)
     if completed:
         yield now_token
