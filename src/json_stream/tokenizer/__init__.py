@@ -6,9 +6,9 @@ https://github.com/danielyule/naya
 Copyright (c) 2019 Daniel Yule
 """
 import io
-import unicodedata
+from typing import Optional, Tuple
 
-SURROGATE = 'Cs'
+from json_stream.tokenizer.strings import JsonStringReader
 
 
 class TokenType:
@@ -29,7 +29,6 @@ class State:
     FLOATING_POINT_0 = 6
     FLOATING_POINT = 8
     STRING = 9
-    STRING_ESCAPE = 10
     STRING_END = 11
     TRUE_1 = 12
     TRUE_2 = 13
@@ -41,10 +40,6 @@ class State:
     NULL_1 = 19
     NULL_2 = 20
     NULL_3 = 21
-    UNICODE = 22
-    UNICODE_SURROGATE_START = 23
-    UNICODE_SURROGATE_STRING_ESCAPE = 24
-    UNICODE_SURROGATE = 25
 
 
 class SpecialChar:
@@ -78,22 +73,20 @@ def _ensure_text(stream):
     return stream
 
 
-def tokenize(stream, *, buffering=-1, **_):
+def tokenize(stream, *, buffering=-1, strings_as_files, **_):
     stream = _ensure_text(stream)
 
     def is_delimiter(char):
         return char.isspace() or char in "{}[]:," or char == SpecialChar.EOF
 
     token = []
-    unicode_buffer = ""
     completed = False
-    now_token = ""
+    now_token: Optional[Tuple] = None
 
     def process_char(char):
-        nonlocal token, completed, now_token, unicode_buffer
+        nonlocal completed, now_token, state, buffer, index
         advance = True
         add_char = False
-        next_state = state
         if state == State.WHITESPACE:
             if char == "{":
                 completed = True
@@ -113,36 +106,40 @@ def tokenize(stream, *, buffering=-1, **_):
             elif char == ":":
                 completed = True
                 now_token = (TokenType.OPERATOR, ":")
-            elif char == "\"":
-                next_state = State.STRING
+            elif char == '"':
+                state = State.STRING
+                now_token = (TokenType.STRING, JsonStringReader(stream, buffer))
+                if strings_as_files:
+                    completed = True
+                advance = False
             elif char in "123456789":
-                next_state = State.INTEGER
+                state = State.INTEGER
                 add_char = True
             elif char == "0":
-                next_state = State.INTEGER_0
+                state = State.INTEGER_0
                 add_char = True
             elif char == "-":
-                next_state = State.INTEGER_SIGN
+                state = State.INTEGER_SIGN
                 add_char = True
             elif char == "f":
-                next_state = State.FALSE_1
+                state = State.FALSE_1
             elif char == "t":
-                next_state = State.TRUE_1
+                state = State.TRUE_1
             elif char == "n":
-                next_state = State.NULL_1
+                state = State.NULL_1
             elif not char.isspace() and not char == SpecialChar.EOF:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
         elif state == State.INTEGER:
             if char in "0123456789":
                 add_char = True
             elif char == ".":
-                next_state = State.FLOATING_POINT_0
+                state = State.FLOATING_POINT_0
                 add_char = True
             elif char == "e" or char == 'E':
-                next_state = State.INTEGER_EXP_0
+                state = State.INTEGER_EXP_0
                 add_char = True
             elif is_delimiter(char):
-                next_state = State.WHITESPACE
+                state = State.WHITESPACE
                 completed = True
                 now_token = (TokenType.NUMBER, int("".join(token)))
                 advance = False
@@ -150,13 +147,13 @@ def tokenize(stream, *, buffering=-1, **_):
                 raise ValueError("A number must contain only digits.  Got '{}'".format(char))
         elif state == State.INTEGER_0:
             if char == ".":
-                next_state = State.FLOATING_POINT_0
+                state = State.FLOATING_POINT_0
                 add_char = True
             elif char == "e" or char == 'E':
-                next_state = State.INTEGER_EXP_0
+                state = State.INTEGER_EXP_0
                 add_char = True
             elif is_delimiter(char):
-                next_state = State.WHITESPACE
+                state = State.WHITESPACE
                 completed = True
                 now_token = (TokenType.NUMBER, 0)
                 advance = False
@@ -164,16 +161,16 @@ def tokenize(stream, *, buffering=-1, **_):
                 raise ValueError("A 0 must be followed by a '.' or a 'e'.  Got '{0}'".format(char))
         elif state == State.INTEGER_SIGN:
             if char == "0":
-                next_state = State.INTEGER_0
+                state = State.INTEGER_0
                 add_char = True
             elif char in "123456789":
-                next_state = State.INTEGER
+                state = State.INTEGER
                 add_char = True
             else:
                 raise ValueError("A - must be followed by a digit.  Got '{0}'".format(char))
         elif state == State.INTEGER_EXP_0:
             if char == "+" or char == "-" or char in "0123456789":
-                next_state = State.INTEGER_EXP
+                state = State.INTEGER_EXP
                 add_char = True
             else:
                 raise ValueError("An e in a number must be followed by a '+', '-' or digit.  Got '{0}'".format(char))
@@ -183,7 +180,7 @@ def tokenize(stream, *, buffering=-1, **_):
             elif is_delimiter(char):
                 completed = True
                 now_token = (TokenType.NUMBER, float("".join(token)))
-                next_state = State.WHITESPACE
+                state = State.WHITESPACE
                 advance = False
             else:
                 raise ValueError("A number exponent must consist only of digits.  Got '{}'".format(char))
@@ -191,179 +188,100 @@ def tokenize(stream, *, buffering=-1, **_):
             if char in "0123456789":
                 add_char = True
             elif char == "e" or char == "E":
-                next_state = State.INTEGER_EXP_0
+                state = State.INTEGER_EXP_0
                 add_char = True
             elif is_delimiter(char):
                 completed = True
                 now_token = (TokenType.NUMBER, float("".join(token)))
-                next_state = State.WHITESPACE
+                state = State.WHITESPACE
                 advance = False
             else:
                 raise ValueError("A number must include only digits")
         elif state == State.FLOATING_POINT_0:
             if char in "0123456789":
-                next_state = State.FLOATING_POINT
+                state = State.FLOATING_POINT
                 add_char = True
             else:
                 raise ValueError("A number with a decimal point must be followed by a fractional part")
         elif state == State.FALSE_1:
             if char == "a":
-                next_state = State.FALSE_2
+                state = State.FALSE_2
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
         elif state == State.FALSE_2:
             if char == "l":
-                next_state = State.FALSE_3
+                state = State.FALSE_3
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
         elif state == State.FALSE_3:
             if char == "s":
-                next_state = State.FALSE_4
+                state = State.FALSE_4
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
         elif state == State.FALSE_4:
             if char == "e":
-                next_state = State.WHITESPACE
+                state = State.WHITESPACE
                 completed = True
                 now_token = (TokenType.BOOLEAN, False)
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
         elif state == State.TRUE_1:
             if char == "r":
-                next_state = State.TRUE_2
+                state = State.TRUE_2
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
         elif state == State.TRUE_2:
             if char == "u":
-                next_state = State.TRUE_3
+                state = State.TRUE_3
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
         elif state == State.TRUE_3:
             if char == "e":
-                next_state = State.WHITESPACE
+                state = State.WHITESPACE
                 completed = True
                 now_token = (TokenType.BOOLEAN, True)
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
         elif state == State.NULL_1:
             if char == "u":
-                next_state = State.NULL_2
+                state = State.NULL_2
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
         elif state == State.NULL_2:
             if char == "l":
-                next_state = State.NULL_3
+                state = State.NULL_3
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
         elif state == State.NULL_3:
             if char == "l":
-                next_state = State.WHITESPACE
+                state = State.WHITESPACE
                 completed = True
                 now_token = (TokenType.NULL, None)
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
         elif state == State.STRING:
-            if char == "\"":
+            reader: JsonStringReader = now_token[1]
+            try:
+                s = reader.read()
+            finally:
+                index += reader.index
+            if not strings_as_files:
+                now_token = (TokenType.STRING, s)
                 completed = True
-                now_token = (TokenType.STRING, "".join(token))
-                next_state = State.STRING_END
-            elif char == "\\":
-                next_state = State.STRING_ESCAPE
-            elif char == SpecialChar.EOF:
-                raise ValueError("Unterminated string at end of file")
-            else:
-                add_char = True
+            buffer = reader.buffer
+            state = State.STRING_END
         elif state == State.STRING_END:
             if is_delimiter(char):
                 advance = False
-                next_state = State.WHITESPACE
+                state = State.WHITESPACE
             else:
                 raise ValueError("Expected whitespace or an operator after string.  Got '{}'".format(char))
-        elif state == State.STRING_ESCAPE:
-            next_state = State.STRING
-            if char == "\\" or char == "\"":
-                add_char = True
-            elif char == "b":
-                char = "\b"
-                add_char = True
-            elif char == "f":
-                char = "\f"
-                add_char = True
-            elif char == "n":
-                char = "\n"
-                add_char = True
-            elif char == "t":
-                char = "\t"
-                add_char = True
-            elif char == "r":
-                char = "\r"
-                add_char = True
-            elif char == "/":
-                char = "/"
-                add_char = True
-            elif char == "u":
-                next_state = State.UNICODE
-                unicode_buffer = ""
-            else:
-                raise ValueError("Invalid string escape: {}".format(char))
-        elif state == State.UNICODE:
-            if char == SpecialChar.EOF:
-                raise ValueError('Unterminated unicode literal at end of file')
-            unicode_buffer += char
-            if len(unicode_buffer) == 4:
-                try:
-                    code_point = int(unicode_buffer, 16)
-                except ValueError:
-                    raise ValueError(f"Invalid unicode literal: \\u{unicode_buffer}")
-                char = chr(code_point)
-                if unicodedata.category(char) == SURROGATE:
-                    next_state = State.UNICODE_SURROGATE_START
-                else:
-                    next_state = State.STRING
-                    add_char = True
-        elif state == State.UNICODE_SURROGATE_START:
-            if char == "\\":
-                next_state = State.UNICODE_SURROGATE_STRING_ESCAPE
-            elif char == SpecialChar.EOF:
-                raise ValueError("Unpaired UTF-16 surrogate at end of file")
-            else:
-                raise ValueError(f"Unpaired UTF-16 surrogate")
-
-        elif state == State.UNICODE_SURROGATE_STRING_ESCAPE:
-            if char == "u":
-                next_state = State.UNICODE_SURROGATE
-            elif char == SpecialChar.EOF:
-                raise ValueError("Unpaired UTF-16 surrogate at end of file")
-            else:
-                raise ValueError(f"Unpaired UTF-16 surrogate")
-
-        elif state == State.UNICODE_SURROGATE:
-            if char == SpecialChar.EOF:
-                raise ValueError('Unterminated unicode literal at end of file')
-            unicode_buffer += char
-            if len(unicode_buffer) == 8:
-                code_point_1 = int(unicode_buffer[:4], 16)
-                try:
-                    code_point_2 = int(unicode_buffer[4:], 16)
-                except ValueError:
-                    raise ValueError(f"Invalid unicode literal: \\u{unicode_buffer[4:]}")
-                char = chr(code_point_2)
-                if unicodedata.category(char) != SURROGATE:
-                    raise ValueError(f"Second half of UTF-16 surrogate pair is not a surrogate!")
-                try:
-                    pair = int.to_bytes(code_point_1, 2, 'little') + int.to_bytes(code_point_2, 2, 'little')
-                    char = pair.decode('utf-16-le')
-                except ValueError:
-                    raise ValueError(
-                        f"Error decoding UTF-16 surrogate pair \\u{unicode_buffer[:4]}\\u{unicode_buffer[4:]}"
-                    )
-                next_state = State.STRING
-                add_char = True
 
         if add_char:
             token.append(char)
 
-        return advance, next_state
+        return advance
+
     state = State.WHITESPACE
     if not buffering:
         buffering = 1
@@ -379,13 +297,14 @@ def tokenize(stream, *, buffering=-1, **_):
             c, buffer = buffer[0], buffer[1:] or stream.read(buffering)
             index += 1
         try:
-            advance, state = process_char(c)
+            advance = process_char(c)
         except ValueError as e:
             raise ValueError("".join([e.args[0], " at index {}".format(index)]))
         if completed:
             completed = False
             token = []
             yield now_token
+
     process_char(SpecialChar.EOF)
     if completed:
         yield now_token
