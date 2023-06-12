@@ -1,8 +1,7 @@
 import io
 import unicodedata
 from typing import Union
-
-from json_stream.tokenizer import State, SURROGATE
+from io import DEFAULT_BUFFER_SIZE
 
 STRING_ESCAPE_CODES = {
     '\\': '\\',
@@ -15,18 +14,28 @@ STRING_ESCAPE_CODES = {
     'r': '\r'
 }
 
+SURROGATE = 'Cs'
+
+CHAR = 1
+STRING_ESCAPE = 2
+UNICODE = 4
+UNICODE_SURROGATE_START = 5
+UNICODE_SURROGATE_STRING_ESCAPE = 6
+UNICODE_SURROGATE = 7
+
 
 class JsonStringReader(io.TextIOBase):
     def __init__(self, stream: io.TextIOBase, initial_buffer=''):
         self.stream = stream
         self.buffer = initial_buffer
         self.unicode_buffer = ''
-        self.state = State.STRING
+        self.state = CHAR
         self.complete = False
+        self.index = 0
 
     def read(self, size: Union[int, None] = None) -> str:
         result = ''
-        length = io.DEFAULT_BUFFER_SIZE
+        length = DEFAULT_BUFFER_SIZE
         while not self.complete and (size is None or not result):
             if size:
                 length = size - len(result)
@@ -42,34 +51,35 @@ class JsonStringReader(io.TextIOBase):
         result = ""
         start = 0
         for i, c in enumerate(chunk):
+            self.index += 1
             if i == size:
-                if state == State.STRING:
+                if state == CHAR:
                     result += chunk[start:i]
                 self.buffer = chunk[i:]
                 break
-            if state == State.STRING:
+            if state == CHAR:
                 if c == '"':
                     result += chunk[start:i]
                     self.complete = True
                     self.buffer = chunk[i + 1:]
                     break
                 elif c == "\\":
-                    state = State.STRING_ESCAPE
+                    state = STRING_ESCAPE
                     result += chunk[start:i]
                     start = i + 1
 
-            elif state == State.STRING_ESCAPE:
+            elif state == STRING_ESCAPE:
                 char = STRING_ESCAPE_CODES.get(c)
                 start = i + 1
                 if char:
                     result += char
-                    state = State.STRING
+                    state = CHAR
                 elif c == 'u':
-                    state = State.UNICODE
+                    state = UNICODE
                 else:
                     raise ValueError("Invalid string escape: {}".format(c))
 
-            elif state == State.UNICODE:
+            elif state == UNICODE:
                 unicode_buffer += c
                 start = i + 1
                 if len(unicode_buffer) == 4:
@@ -79,27 +89,27 @@ class JsonStringReader(io.TextIOBase):
                         raise ValueError(f"Invalid unicode literal: \\u{unicode_buffer}")
                     char = chr(code_point)
                     if unicodedata.category(char) == SURROGATE:
-                        state = State.UNICODE_SURROGATE_START
+                        state = UNICODE_SURROGATE_START
                     else:
                         result += char
                         unicode_buffer = ''
-                        state = State.STRING
+                        state = CHAR
 
-            elif state == State.UNICODE_SURROGATE_START:
+            elif state == UNICODE_SURROGATE_START:
                 if c == "\\":
-                    state = State.UNICODE_SURROGATE_STRING_ESCAPE
+                    state = UNICODE_SURROGATE_STRING_ESCAPE
                     start = i + 1
                 else:
                     raise ValueError(f"Unpaired UTF-16 surrogate")
 
-            elif state == State.UNICODE_SURROGATE_STRING_ESCAPE:
+            elif state == UNICODE_SURROGATE_STRING_ESCAPE:
                 if c == "u":
-                    state = State.UNICODE_SURROGATE
+                    state = UNICODE_SURROGATE
                     start = i + 1
                 else:
                     raise ValueError(f"Unpaired UTF-16 surrogate")
 
-            elif state == State.UNICODE_SURROGATE:
+            elif state == UNICODE_SURROGATE:
                 unicode_buffer += c
                 start = i + 1
                 if len(unicode_buffer) == 8:
@@ -118,7 +128,7 @@ class JsonStringReader(io.TextIOBase):
                             f"Error decoding UTF-16 surrogate pair \\u{unicode_buffer[:4]}\\u{unicode_buffer[4:]}"
                         )
                     unicode_buffer = ''
-                    state = State.STRING
+                    state = CHAR
         else:
             result += chunk[start:]
             self.buffer = ''

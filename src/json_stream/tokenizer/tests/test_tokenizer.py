@@ -90,7 +90,7 @@ class TestJsonTokenization(TestCase):
             self.tokenize_sequence(r'"\2"')
         with self.assertRaisesRegex(ValueError, "Invalid string escape: ! at index 2"):
             self.tokenize_sequence(r'"\!"')
-        with self.assertRaisesRegex(ValueError, "Unterminated unicode literal at end of file"):
+        with self.assertRaisesRegex(ValueError, "Unterminated string at end of file at index 4"):
             self.tokenize_sequence(r'"\u!"')
 
     def test_unterminated_strings(self):
@@ -172,11 +172,11 @@ class TestJsonTokenization(TestCase):
     def test_unicode_surrogate_pair_unpaired(self):
         with self.assertRaisesRegex(ValueError, "Unpaired UTF-16 surrogate at index 7"):
             list(tokenize(StringIO(r'"\ud834"')))
-        with self.assertRaisesRegex(ValueError, "Unpaired UTF-16 surrogate at end of file"):
+        with self.assertRaisesRegex(ValueError, "Unterminated string at end of file"):
             list(tokenize(StringIO(r'"\ud834')))
         with self.assertRaisesRegex(ValueError, "Unpaired UTF-16 surrogate at index 8"):
             list(tokenize(StringIO(r'"\ud834\x')))
-        with self.assertRaisesRegex(ValueError, "Unpaired UTF-16 surrogate at end of file"):
+        with self.assertRaisesRegex(ValueError, "Unterminated string at end of file"):
             list(tokenize(StringIO(r'"\ud834' + '\\')))
 
     def test_unicode_surrogate_pair_non_surrogate(self):
@@ -197,9 +197,9 @@ class TestJsonTokenization(TestCase):
             list(tokenize(StringIO(r'"\ud834\ud834"')))
 
     def test_unicode_surrogate_pair_literal_unterminated(self):
-        with self.assertRaisesRegex(ValueError, r"Unterminated unicode literal at end of file"):
+        with self.assertRaisesRegex(ValueError, r"Unterminated string at end of file at index 11"):
             list(tokenize(StringIO(r'"\ud834\ud83')))
 
     def test_unicode_surrogate_pair_literal_unterminated_first_half(self):
-        with self.assertRaisesRegex(ValueError, r"Unterminated unicode literal at end of file"):
+        with self.assertRaisesRegex(ValueError, r"Unterminated string at end of file"):
             list(tokenize(StringIO(r'"\ud83')))
