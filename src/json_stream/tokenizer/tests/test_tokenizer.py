@@ -199,3 +199,7 @@ class TestJsonTokenization(TestCase):
     def test_unicode_surrogate_pair_literal_unterminated(self):
         with self.assertRaisesRegex(ValueError, r"Unterminated unicode literal at end of file"):
             list(tokenize(StringIO(r'"\ud834\ud83')))
+
+    def test_unicode_surrogate_pair_literal_unterminated_first_half(self):
+        with self.assertRaisesRegex(ValueError, r"Unterminated unicode literal at end of file"):
+            list(tokenize(StringIO(r'"\ud83')))

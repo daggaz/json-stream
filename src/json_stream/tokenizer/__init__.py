@@ -90,7 +90,7 @@ def tokenize(stream):
     now_token = ""
 
     def process_char(char):
-        nonlocal token, completed, now_token, unicode_buffer
+        nonlocal completed, now_token, unicode_buffer
         advance = True
         add_char = False
         next_state = state
