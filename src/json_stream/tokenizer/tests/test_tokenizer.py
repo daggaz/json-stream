@@ -9,7 +9,7 @@ import re
 from io import StringIO
 from unittest import TestCase
 
-from json_stream.tokenizer import tokenize, TokenType
+from json_stream.tokenizer import tokenize, NUMBER, OPERATOR, STRING
 
 
 class TestJsonTokenization(TestCase):
@@ -21,21 +21,21 @@ class TestJsonTokenization(TestCase):
         self.assertEqual(1, len(token_list))
         ttype, token = token_list[0]
         self.assertEqual(expected, token)
-        self.assertEqual(ttype, TokenType.NUMBER)
+        self.assertEqual(ttype, NUMBER)
 
     def assertOperatorEquals(self, expected, actual):
 
         token_list = self.tokenize_sequence(actual)
         ttype, token = token_list[0]
         self.assertEqual(expected, token)
-        self.assertEqual(ttype, TokenType.OPERATOR)
+        self.assertEqual(ttype, OPERATOR)
 
     def assertStringEquals(self, *, expected, json_input):
         token_list = self.tokenize_sequence(json_input)
         self.assertEqual(1, len(token_list))
         ttype, token = token_list[0]
         self.assertEqual(expected, token)
-        self.assertEqual(ttype, TokenType.STRING)
+        self.assertEqual(ttype, STRING)
 
     def test_number_parsing(self):
         self.assertNumberEquals(0, "0")

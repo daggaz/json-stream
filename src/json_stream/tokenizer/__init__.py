@@ -11,45 +11,43 @@ from typing import Optional, Tuple
 from json_stream.tokenizer.strings import JsonStringReader
 
 
-class TokenType:
-    OPERATOR = 0
-    STRING = 1
-    NUMBER = 2
-    BOOLEAN = 3
-    NULL = 4
+# TokenType
+OPERATOR = 0
+STRING = 1
+NUMBER = 2
+BOOLEAN = 3
+NULL = 4
 
+# State
+WHITESPACE = 0
+INTEGER_0 = 1
+INTEGER_SIGN = 2
+INTEGER = 3
+INTEGER_EXP = 4
+INTEGER_EXP_0 = 5
+FLOATING_POINT_0 = 6
+FLOATING_POINT = 8
+STR = 9
+STR_END = 11
+TRUE_1 = 12
+TRUE_2 = 13
+TRUE_3 = 14
+FALSE_1 = 15
+FALSE_2 = 16
+FALSE_3 = 17
+FALSE_4 = 18
+NULL_1 = 19
+NULL_2 = 20
+NULL_3 = 21
 
-class State:
-    WHITESPACE = 0
-    INTEGER_0 = 1
-    INTEGER_SIGN = 2
-    INTEGER = 3
-    INTEGER_EXP = 4
-    INTEGER_EXP_0 = 5
-    FLOATING_POINT_0 = 6
-    FLOATING_POINT = 8
-    STRING = 9
-    STRING_END = 11
-    TRUE_1 = 12
-    TRUE_2 = 13
-    TRUE_3 = 14
-    FALSE_1 = 15
-    FALSE_2 = 16
-    FALSE_3 = 17
-    FALSE_4 = 18
-    NULL_1 = 19
-    NULL_2 = 20
-    NULL_3 = 21
-
-
-class SpecialChar:
-    # Kind of a hack but simple: if we used the empty string "" to represent
-    # EOF, expressions like `char in "0123456789"` would be true for EOF, which
-    # is confusing. If we used a non-string, they would result in TypeErrors.
-    # By using the string "EOF", they work as expected. The only thing we have
-    # to be careful about is to not ever use "EOF" in any such strings used for
-    # char membership checking, which we have no reason to do anyway.
-    EOF = "EOF"
+# SpecialChar
+# Kind of a hack but simple: if we used the empty string "" to represent
+# EOF, expressions like `char in "0123456789"` would be true for EOF, which
+# is confusing. If we used a non-string, they would result in TypeErrors.
+# By using the string "EOF", they work as expected. The only thing we have
+# to be careful about is to not ever use "EOF" in any such strings used for
+# char membership checking, which we have no reason to do anyway.
+EOF = "EOF"
 
 
 def _guess_encoding(stream):
@@ -77,7 +75,7 @@ def tokenize(stream, strings_as_streams=False):
     stream = _ensure_text(stream)
 
     def is_delimiter(char):
-        return char.isspace() or char in "{}[]:," or char == SpecialChar.EOF
+        return char.isspace() or char in "{}[]:," or char == EOF
 
     token = []
     completed = False
@@ -87,193 +85,193 @@ def tokenize(stream, strings_as_streams=False):
         nonlocal completed, now_token, state, buffer, index
         advance = True
         add_char = False
-        if state == State.WHITESPACE:
+        if state == WHITESPACE:
             if char == "{":
                 completed = True
-                now_token = (TokenType.OPERATOR, "{")
+                now_token = (OPERATOR, "{")
             elif char == "}":
                 completed = True
-                now_token = (TokenType.OPERATOR, "}")
+                now_token = (OPERATOR, "}")
             elif char == "[":
                 completed = True
-                now_token = (TokenType.OPERATOR, "[")
+                now_token = (OPERATOR, "[")
             elif char == "]":
                 completed = True
-                now_token = (TokenType.OPERATOR, "]")
+                now_token = (OPERATOR, "]")
             elif char == ",":
                 completed = True
-                now_token = (TokenType.OPERATOR, ",")
+                now_token = (OPERATOR, ",")
             elif char == ":":
                 completed = True
-                now_token = (TokenType.OPERATOR, ":")
+                now_token = (OPERATOR, ":")
             elif char == '"':
-                state = State.STRING
-                now_token = (TokenType.STRING, JsonStringReader(stream, buffer))
+                state = STR
+                now_token = (STRING, JsonStringReader(stream, buffer))
                 if strings_as_streams:
                     completed = True
                 advance = False
             elif char in "123456789":
-                state = State.INTEGER
+                state = INTEGER
                 add_char = True
             elif char == "0":
-                state = State.INTEGER_0
+                state = INTEGER_0
                 add_char = True
             elif char == "-":
-                state = State.INTEGER_SIGN
+                state = INTEGER_SIGN
                 add_char = True
             elif char == "f":
-                state = State.FALSE_1
+                state = FALSE_1
             elif char == "t":
-                state = State.TRUE_1
+                state = TRUE_1
             elif char == "n":
-                state = State.NULL_1
-            elif not char.isspace() and not char == SpecialChar.EOF:
+                state = NULL_1
+            elif not char.isspace() and not char == EOF:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
-        elif state == State.INTEGER:
+        elif state == INTEGER:
             if char in "0123456789":
                 add_char = True
             elif char == ".":
-                state = State.FLOATING_POINT_0
+                state = FLOATING_POINT_0
                 add_char = True
             elif char == "e" or char == 'E':
-                state = State.INTEGER_EXP_0
+                state = INTEGER_EXP_0
                 add_char = True
             elif is_delimiter(char):
-                state = State.WHITESPACE
+                state = WHITESPACE
                 completed = True
-                now_token = (TokenType.NUMBER, int("".join(token)))
+                now_token = (NUMBER, int("".join(token)))
                 advance = False
             else:
                 raise ValueError("A number must contain only digits.  Got '{}'".format(char))
-        elif state == State.INTEGER_0:
+        elif state == INTEGER_0:
             if char == ".":
-                state = State.FLOATING_POINT_0
+                state = FLOATING_POINT_0
                 add_char = True
             elif char == "e" or char == 'E':
-                state = State.INTEGER_EXP_0
+                state = INTEGER_EXP_0
                 add_char = True
             elif is_delimiter(char):
-                state = State.WHITESPACE
+                state = WHITESPACE
                 completed = True
-                now_token = (TokenType.NUMBER, 0)
+                now_token = (NUMBER, 0)
                 advance = False
             else:
                 raise ValueError("A 0 must be followed by a '.' or a 'e'.  Got '{0}'".format(char))
-        elif state == State.INTEGER_SIGN:
+        elif state == INTEGER_SIGN:
             if char == "0":
-                state = State.INTEGER_0
+                state = INTEGER_0
                 add_char = True
             elif char in "123456789":
-                state = State.INTEGER
+                state = INTEGER
                 add_char = True
             else:
                 raise ValueError("A - must be followed by a digit.  Got '{0}'".format(char))
-        elif state == State.INTEGER_EXP_0:
+        elif state == INTEGER_EXP_0:
             if char == "+" or char == "-" or char in "0123456789":
-                state = State.INTEGER_EXP
+                state = INTEGER_EXP
                 add_char = True
             else:
                 raise ValueError("An e in a number must be followed by a '+', '-' or digit.  Got '{0}'".format(char))
-        elif state == State.INTEGER_EXP:
+        elif state == INTEGER_EXP:
             if char in "0123456789":
                 add_char = True
             elif is_delimiter(char):
                 completed = True
-                now_token = (TokenType.NUMBER, float("".join(token)))
-                state = State.WHITESPACE
+                now_token = (NUMBER, float("".join(token)))
+                state = WHITESPACE
                 advance = False
             else:
                 raise ValueError("A number exponent must consist only of digits.  Got '{}'".format(char))
-        elif state == State.FLOATING_POINT:
+        elif state == FLOATING_POINT:
             if char in "0123456789":
                 add_char = True
             elif char == "e" or char == "E":
-                state = State.INTEGER_EXP_0
+                state = INTEGER_EXP_0
                 add_char = True
             elif is_delimiter(char):
                 completed = True
-                now_token = (TokenType.NUMBER, float("".join(token)))
-                state = State.WHITESPACE
+                now_token = (NUMBER, float("".join(token)))
+                state = WHITESPACE
                 advance = False
             else:
                 raise ValueError("A number must include only digits")
-        elif state == State.FLOATING_POINT_0:
+        elif state == FLOATING_POINT_0:
             if char in "0123456789":
-                state = State.FLOATING_POINT
+                state = FLOATING_POINT
                 add_char = True
             else:
                 raise ValueError("A number with a decimal point must be followed by a fractional part")
-        elif state == State.FALSE_1:
+        elif state == FALSE_1:
             if char == "a":
-                state = State.FALSE_2
+                state = FALSE_2
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
-        elif state == State.FALSE_2:
+        elif state == FALSE_2:
             if char == "l":
-                state = State.FALSE_3
+                state = FALSE_3
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
-        elif state == State.FALSE_3:
+        elif state == FALSE_3:
             if char == "s":
-                state = State.FALSE_4
+                state = FALSE_4
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
-        elif state == State.FALSE_4:
+        elif state == FALSE_4:
             if char == "e":
-                state = State.WHITESPACE
+                state = WHITESPACE
                 completed = True
-                now_token = (TokenType.BOOLEAN, False)
+                now_token = (BOOLEAN, False)
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
-        elif state == State.TRUE_1:
+        elif state == TRUE_1:
             if char == "r":
-                state = State.TRUE_2
+                state = TRUE_2
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
-        elif state == State.TRUE_2:
+        elif state == TRUE_2:
             if char == "u":
-                state = State.TRUE_3
+                state = TRUE_3
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
-        elif state == State.TRUE_3:
+        elif state == TRUE_3:
             if char == "e":
-                state = State.WHITESPACE
+                state = WHITESPACE
                 completed = True
-                now_token = (TokenType.BOOLEAN, True)
+                now_token = (BOOLEAN, True)
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
-        elif state == State.NULL_1:
+        elif state == NULL_1:
             if char == "u":
-                state = State.NULL_2
+                state = NULL_2
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
-        elif state == State.NULL_2:
+        elif state == NULL_2:
             if char == "l":
-                state = State.NULL_3
+                state = NULL_3
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
-        elif state == State.NULL_3:
+        elif state == NULL_3:
             if char == "l":
-                state = State.WHITESPACE
+                state = WHITESPACE
                 completed = True
-                now_token = (TokenType.NULL, None)
+                now_token = (NULL, None)
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
-        elif state == State.STRING:
+        elif state == STR:
             reader: JsonStringReader = now_token[1]
             try:
                 s = reader.read()
             finally:
                 index += reader.index
             if not strings_as_streams:
-                now_token = (TokenType.STRING, s)
+                now_token = (STRING, s)
                 completed = True
             buffer = reader.buffer
-            state = State.STRING_END
-        elif state == State.STRING_END:
+            state = STR_END
+        elif state == STR_END:
             if is_delimiter(char):
                 advance = False
-                state = State.WHITESPACE
+                state = WHITESPACE
             else:
                 raise ValueError("Expected whitespace or an operator after string.  Got '{}'".format(char))
 
@@ -282,7 +280,7 @@ def tokenize(stream, strings_as_streams=False):
 
         return advance
 
-    state = State.WHITESPACE
+    state = WHITESPACE
     buffer = stream.read(io.DEFAULT_BUFFER_SIZE)
     c = None
     index = -1
@@ -300,6 +298,6 @@ def tokenize(stream, strings_as_streams=False):
             token = []
             yield now_token
 
-    process_char(SpecialChar.EOF)
+    process_char(EOF)
     if completed:
         yield now_token
