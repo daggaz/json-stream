@@ -1,4 +1,5 @@
 import copy
+import json
 from io import StringIO
 
 from json_stream import load
@@ -106,8 +107,8 @@ class TestLoader(JSONLoadTestCase):
 
         # Access out of order
         data = load(StringIO(json_str), persistent=True)
-        self.assertEqual(data[0], 1)
         self.assertTrue(data[1])
+        self.assertEqual(data[0], 1)
         self.assertEqual(data[2], "")
         with self.assertRaises(IndexError):
             _ = data[3]
@@ -246,3 +247,13 @@ class TestLoader(JSONLoadTestCase):
             load(StringIO('{"x": 1')).read_all()
         with self.assertRaisesRegex(ValueError, "Unterminated object at end of file"):
             load(StringIO('{"x": 1,')).read_all()
+
+    def test_unicode(self):
+        data = json.dumps('Ä')
+        result = load(StringIO(data))
+        self.assertEqual(result, 'Ä')
+
+    def test_non_bmp_unicode(self):
+        data = json.dumps('𝄞')
+        result = load(StringIO(data))
+        self.assertEqual(result, '𝄞')
