@@ -19,9 +19,9 @@ def _visit(obj, visitor, path):
         visitor(obj, path)
 
 
-def visit(fp_or_iterator, visitor, tokenizer=default_tokenizer, buffering=-1):
+def visit(fp_or_iterator, visitor, tokenizer=default_tokenizer, buffering=-1, strings_as_files=False):
     fp = ensure_file(fp_or_iterator)
-    token_stream = tokenizer(fp, buffering=buffering)
+    token_stream = tokenizer(fp, buffering=buffering, strings_as_files=strings_as_files)
     _, token = next(token_stream)
     obj = StreamingJSONBase.factory(token, token_stream, persistent=False)
     _visit(obj, visitor, ())
