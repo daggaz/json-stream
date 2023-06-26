@@ -38,5 +38,5 @@ jobs:
         pytest
     - name: Test without rust tokenizer
       run: |
-        pip uninstall -y json-stream-rs-tokenizer
+        pip uninstall json-stream-rs-tokenizer
         pytest
