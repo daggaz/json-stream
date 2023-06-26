@@ -28,10 +28,18 @@ class JsonStringReader(io.TextIOBase):
     def __init__(self, stream: io.TextIOBase, initial_buffer=''):
         self.stream = stream
         self.buffer = initial_buffer
+        self.readline_buffer = ''
         self.unicode_buffer = ''
         self.state = CHAR
-        self.complete = False
+        self.end_of_string = False
         self.index = 0
+
+    @property
+    def complete(self):
+        return self.end_of_string and not self.readline_buffer
+
+    def readable(self) -> bool:
+        return True
 
     def read(self, size: Union[int, None] = None) -> str:
         result = ''
@@ -43,6 +51,9 @@ class JsonStringReader(io.TextIOBase):
         return result
 
     def _read_chunk(self, size: Union[int, None] = ...) -> str:
+        if self.readline_buffer:
+            result, self.readline_buffer = self.readline_buffer[:size], self.readline_buffer[size:]
+            return result
         chunk = self.buffer or self.stream.read(size)
         if not chunk:
             raise ValueError("Unterminated string at end of file")
@@ -60,7 +71,7 @@ class JsonStringReader(io.TextIOBase):
             if state == CHAR:
                 if c == '"':
                     result += chunk[start:i]
-                    self.complete = True
+                    self.end_of_string = True
                     self.buffer = chunk[i + 1:]
                     break
                 elif c == "\\":
@@ -135,4 +146,24 @@ class JsonStringReader(io.TextIOBase):
 
         self.state = state
         self.unicode_buffer = unicode_buffer
+        return result
+
+    def readline(self, size: int = None) -> str:
+        result = ''
+        read_size = DEFAULT_BUFFER_SIZE
+        while not self.complete:
+            if size:
+                result_length = len(result)
+                if result_length >= size:
+                    result, self.readline_buffer = result[:size], result[size:] + self.readline_buffer
+                    break
+                read_size = size - result_length
+            chunk = self._read_chunk(read_size)
+            i = chunk.find('\n')
+            if i < 0:
+                result += chunk
+            else:
+                chunk, self.readline_buffer = chunk[:i+1], chunk[i+1:]
+                result += chunk
+                break
         return result

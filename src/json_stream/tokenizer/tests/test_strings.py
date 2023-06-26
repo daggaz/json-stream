@@ -1,6 +1,7 @@
 import re
 from io import StringIO
 from unittest import TestCase
+from unittest.mock import patch
 
 from json_stream.tokenizer.strings import JsonStringReader
 
@@ -76,7 +77,7 @@ class TestJsonStringReader(TestCase):
         self.assertStringRaises(r'"\u!!!', "Unterminated string at end of file")
 
     def test_with_initial_buffer(self):
-        self.assertStringEquals("there will be more string", buffer='"there will be ', stream='more string"')
+        self.assertStringEquals("there will be more string", buffer='"there will be ', stream='more string"')  # x   x x
 
     def test_remainder(self):
         reader, f = self.assertStringEquals(
@@ -132,6 +133,166 @@ class TestJsonStringReader(TestCase):
             buffer, stream = json[:i], json[i:]
             self.assertStringEquals("abcdeÄedcba", buffer=buffer, stream=stream)
 
+    def test_readable(self):
+        reader = JsonStringReader(StringIO())
+        self.assertTrue(reader.readable())
+
+    def test_readline(self):
+        stream = StringIO(r'some\nlines\nof\ntext"')
+        reader = JsonStringReader(stream)
+        self.assertReadline(
+            reader, stream,
+            result='some\n',
+            remaining_readline_buffer='lines\nof\ntext',
+            complete=False,
+        )
+        self.assertReadline(
+            reader, stream,
+            result='lines\n',
+            remaining_readline_buffer='of\ntext',
+            complete=False,
+        )
+        self.assertReadline(
+            reader, stream,
+            result='of\n',
+            remaining_readline_buffer='text',
+            complete=False,
+        )
+        self.assertReadline(
+            reader, stream,
+            result='text',
+        )
+
+    @patch('json_stream.tokenizer.strings.DEFAULT_BUFFER_SIZE', 10)
+    def test_readline_needs_multiple_reads(self):
+        stream = StringIO(r'aaaaaaaaaabbbbb\ncccdddddddd"')
+        reader = JsonStringReader(stream)
+        self.assertReadline(
+            reader, stream,
+            result='aaaaaaaaaabbbbb\n',
+            remaining_readline_buffer='ccc',
+            remaining_stream='dddddddd"',
+            complete=False,
+        )
+        self.assertReadline(reader, stream, 'cccdddddddd')
+
+    def test_readline_eof_without_newline(self):
+        stream = StringIO(r'aaaaaaaaaabbbbbcccdddddddd"')
+        reader = JsonStringReader(stream)
+        self.assertReadline(
+            reader, stream,
+            result='aaaaaaaaaabbbbbcccdddddddd',
+        )
+        self.assertReadline(reader, stream, '')
+
+    @patch('json_stream.tokenizer.strings.DEFAULT_BUFFER_SIZE', 10)
+    def test_readline_then_read(self):
+        stream = StringIO(r'aaaaaaaaaabbbbbbbb\ndddddddd"')
+        reader = JsonStringReader(stream)
+        self.assertReadline(
+            reader, stream,
+            result='aaaaaaaaaabbbbbbbb\n',
+            remaining_stream='dddddddd"',
+            complete=False,
+        )
+        self.assertRead(reader, stream, result='dddddddd')
+
+    @patch('json_stream.tokenizer.strings.DEFAULT_BUFFER_SIZE', 10)
+    def test_readline_then_read_with_data_in_buffer(self):
+        stream = StringIO(r'aaaaaaaaaabbbbb\ncccdddddddd"')
+        reader = JsonStringReader(stream)
+        self.assertReadline(
+            reader, stream,
+            result='aaaaaaaaaabbbbb\n',
+            remaining_readline_buffer='ccc',
+            remaining_stream='dddddddd"',
+            complete=False,
+        )
+        self.assertRead(reader, stream, result='cccdddddddd')
+
+    def test_read_then_readline(self):
+        stream = StringIO(r'aaaaaaaaaabbbbb\ncccdddddddd"')
+        reader = JsonStringReader(stream)
+        self.assertRead(
+            reader, stream,
+            result='aaaaaaaaaa',
+            remaining_stream=r'bbbbb\ncccdddddddd"',
+            amount=10,
+            complete=False,
+        )
+        self.assertReadline(
+            reader, stream,
+            result='bbbbb\n',
+            remaining_readline_buffer='cccdddddddd',
+            complete=False,
+        )
+        self.assertReadline(
+            reader, stream,
+            result='cccdddddddd',
+        )
+
+    def test_readline_with_size_shorter_than_line(self):
+        stream = StringIO(r'aaaaaaaaaabbbbb\ncccdddddddd"')
+        reader = JsonStringReader(stream)
+        self.assertReadline(
+            reader, stream,
+            result='aaaaaaaaaa',
+            remaining_stream=r'bbbbb\ncccdddddddd"',
+            amount=10,
+            complete=False,
+        )
+        self.assertReadline(
+            reader, stream,
+            result='bbbbb\n',
+            remaining_readline_buffer='cccdddddddd',
+            complete=False,
+        )
+        self.assertReadline(
+            reader, stream,
+            result='cccdddddddd',
+        )
+
+    def test_readline_with_size_longer_than_line(self):
+        stream = StringIO(r'aaaaaaaaaabbbbb\ncccdddddddd"')
+        reader = JsonStringReader(stream)
+        self.assertReadline(
+            reader, stream,
+            result='aaaaaaaaaabbbbb\n',
+            remaining_readline_buffer='ccc',
+            remaining_stream='dddddddd"',
+            amount=20,
+            complete=False,
+        )
+        self.assertReadline(reader, stream, 'cccdddddddd')
+
+    def test_readline_trailing_newline(self):
+        stream = StringIO(r'a\n"')
+        reader = JsonStringReader(stream)
+        self.assertReadline(
+            reader, stream,
+            result='a\n',
+        )
+
+    def test_readline_no_trailing_newline(self):
+        stream = StringIO(r'a\nb"')
+        reader = JsonStringReader(stream)
+        self.assertReadline(
+            reader, stream,
+            result='a\n',
+            remaining_readline_buffer='b',
+            complete=False
+        )
+        self.assertReadline(reader, stream, 'b')
+
+    def test_readlines(self):
+        stream = StringIO(r'some\nlines\nof\ntext"')
+        reader = JsonStringReader(stream)
+        self.assertListEqual(["some\n", "lines\n", "of\n", "text"], reader.readlines())
+        self.assertEqual('', reader.readline_buffer)
+        self.assertEqual('', reader.buffer)
+        self.assertEqual('', stream.read())
+        self.assertTrue(reader.complete)
+
     def assertStringEquals(self, result, stream, buffer='', remaining_buffer='', remaining_stream='', amount=None,
                            complete=True):
         if buffer:
@@ -145,6 +306,17 @@ class TestJsonStringReader(TestCase):
 
     def assertRead(self, reader, stream, result, remaining_buffer='', remaining_stream='', amount=None, complete=True):
         self.assertEqual(result, reader.read(amount))
+        self.assertEqual(reader.readline_buffer, '')
+        self.assertEqual(remaining_buffer, reader.buffer)
+        pos = stream.tell()
+        self.assertEqual(remaining_stream, stream.read())
+        stream.seek(pos)
+        self.assertEqual(complete, reader.complete)
+
+    def assertReadline(self, reader, stream, result, remaining_readline_buffer='', remaining_buffer='',
+                       remaining_stream='', amount=None, complete=True):
+        self.assertEqual(result, reader.readline(amount))
+        self.assertEqual(remaining_readline_buffer, reader.readline_buffer)
         self.assertEqual(remaining_buffer, reader.buffer)
         pos = stream.tell()
         self.assertEqual(remaining_stream, stream.read())
