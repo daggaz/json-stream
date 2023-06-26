@@ -38,7 +38,7 @@ jobs:
         pytest
     - name: Test without rust tokenizer
       run: |
-        pip uninstall json-stream-rs-tokenizer
+        pip uninstall -y json-stream-rs-tokenizer
         echo << EOF > src/json_stream_rs_tokenizer.py
         class ExtensionException(Exception):
             pass
