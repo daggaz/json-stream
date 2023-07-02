@@ -50,7 +50,7 @@ class JsonStringReader(io.TextIOBase):
             result += self._read_chunk(length)
         return result
 
-    def _read_chunk(self, size: Union[int, None] = ...) -> str:
+    def _read_chunk(self, size: int) -> str:
         if self.readline_buffer:
             result, self.readline_buffer = self.readline_buffer[:size], self.readline_buffer[size:]
             return result
