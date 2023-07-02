@@ -73,7 +73,7 @@ def _ensure_text(stream):
     return stream
 
 
-def tokenize(stream, *, buffering=-1, strings_as_files, **_):
+def tokenize(stream, *, buffering=-1, strings_as_files=False, **_):
     stream = _ensure_text(stream)
 
     def is_delimiter(char):
