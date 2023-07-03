@@ -15,7 +15,7 @@ class TestBuffering(TestCase):
                 yield part
 
         json_string = b'{"tasks":[{"id":1,"title":"task1"},{"id":2,"title":"task2"},{"id":3,"title":"task3"}]}'
-        stream = json_stream.load(data_in_chunks(json_string), buffering=0)
+        stream = json_stream.load(data_in_chunks(json_string))
 
         for task in stream["tasks"]:
             happenings.append(('item', to_standard_types(task)))
