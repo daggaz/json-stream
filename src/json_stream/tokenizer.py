@@ -374,7 +374,7 @@ def tokenize(stream, *, buffering=-1, **_):
     c = None
     index = -1
     advance = True
-    while buffer:
+    while buffer or not advance:
         if advance:
             c, buffer = buffer[0], buffer[1:] or stream.read(buffering)
             index += 1
