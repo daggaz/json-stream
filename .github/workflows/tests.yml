@@ -27,17 +27,20 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install flake8 pytest
         pip install .
+
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings.
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
-    - name: Tests with rust tokenizer
-      run: |
-        pytest
     - name: Tests with python tokenizer
       run: |
         pip uninstall -y json-stream-rs-tokenizer
         cp stub_json_stream_rs_tokenizer.py src/json_stream_rs_tokenizer.py
+        pytest
+    - name: Tests with rust tokenizer
+      run: |
+        pip install json-stream-rs-tokenizer
+        rm -f src/json_stream_rs_tokenizer.py
         pytest
