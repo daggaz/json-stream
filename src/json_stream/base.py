@@ -159,6 +159,7 @@ class StreamingJSONList(StreamingJSONBase, ABC):
         return self._iter_items()
 
 
+@Sequence.register
 class PersistentStreamingJSONList(PersistentStreamingJSONBase, StreamingJSONList):
     def _init_persistent_data(self):
         return []
@@ -184,9 +185,7 @@ class PersistentStreamingJSONList(PersistentStreamingJSONBase, StreamingJSONList
         return self._find_item(k)
 
 
-Sequence.register(PersistentStreamingJSONList)
-
-
+@Sequence.register
 class TransientStreamingJSONList(TransientStreamingJSONBase, StreamingJSONList):
     def __init__(self, token_stream):
         super().__init__(token_stream)
@@ -204,9 +203,6 @@ class TransientStreamingJSONList(TransientStreamingJSONBase, StreamingJSONList):
             if self._index == i:
                 return v
         raise IndexError(f"Index {i} out of range")
-
-
-Sequence.register(TransientStreamingJSONList)
 
 
 class StreamingJSONObject(StreamingJSONBase, ABC):
@@ -256,6 +252,7 @@ class StreamingJSONObject(StreamingJSONBase, ABC):
             return default
 
 
+@Mapping.register
 class PersistentStreamingJSONObject(PersistentStreamingJSONBase, StreamingJSONObject):
     def _init_persistent_data(self):
         return OrderedDict()
@@ -282,9 +279,7 @@ class PersistentStreamingJSONObject(PersistentStreamingJSONBase, StreamingJSONOb
         return self._find_item(k)
 
 
-Mapping.register(PersistentStreamingJSONObject)
-
-
+@Mapping.register
 class TransientStreamingJSONObject(TransientStreamingJSONBase, StreamingJSONObject):
     def _find_item(self, k):
         was_started = self._started
@@ -308,6 +303,3 @@ class TransientStreamingJSONObject(TransientStreamingJSONBase, StreamingJSONObje
     def values(self):
         self._check_started()
         return (v for k, v in self._iter_items())
-
-
-Mapping.register(TransientStreamingJSONObject)
