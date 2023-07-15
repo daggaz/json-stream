@@ -7,11 +7,11 @@ from json_stream.tests import JSONLoadTestCase
 class TestCollectionABCs(JSONLoadTestCase):
 
     def test_isinstance_sequence(self):
-        for persistence in (True, False):
+        for persistent in (True, False):
             with self.subTest(persistent=persistent):
                 self.assertIsInstance(self._to_data([], persistent,  False, default_tokenizer), Sequence)
 
     def test_isinstance_mapping(self):
-        for persistence in (True, False):
+        for persistent in (True, False):
             with self.subTest(persistent=persistent):
                 self.assertIsInstance(self._to_data({}, persistent,  False, default_tokenizer), Mapping)
