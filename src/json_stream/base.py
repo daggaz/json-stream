@@ -3,7 +3,7 @@ import copy
 from abc import ABC
 from collections import OrderedDict
 from itertools import chain
-from typing import Optional, Iterator, Any
+from typing import Optional, Iterator, Any, Mapping, Sequence
 
 from json_stream.tokenizer import TokenType
 
@@ -159,6 +159,7 @@ class StreamingJSONList(StreamingJSONBase, ABC):
         return self._iter_items()
 
 
+@Sequence.register
 class PersistentStreamingJSONList(PersistentStreamingJSONBase, StreamingJSONList):
     def _init_persistent_data(self):
         return []
@@ -184,6 +185,7 @@ class PersistentStreamingJSONList(PersistentStreamingJSONBase, StreamingJSONList
         return self._find_item(k)
 
 
+@Sequence.register
 class TransientStreamingJSONList(TransientStreamingJSONBase, StreamingJSONList):
     def __init__(self, token_stream):
         super().__init__(token_stream)
@@ -250,6 +252,7 @@ class StreamingJSONObject(StreamingJSONBase, ABC):
             return default
 
 
+@Mapping.register
 class PersistentStreamingJSONObject(PersistentStreamingJSONBase, StreamingJSONObject):
     def _init_persistent_data(self):
         return OrderedDict()
@@ -276,6 +279,7 @@ class PersistentStreamingJSONObject(PersistentStreamingJSONBase, StreamingJSONOb
         return self._find_item(k)
 
 
+@Mapping.register
 class TransientStreamingJSONObject(TransientStreamingJSONBase, StreamingJSONObject):
     def _find_item(self, k):
         was_started = self._started
