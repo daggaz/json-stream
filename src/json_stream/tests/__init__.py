@@ -3,14 +3,13 @@ from io import BytesIO, StringIO
 from itertools import zip_longest
 from unittest import TestCase
 
-from json_stream.select_tokenizer import default_tokenizer
 
 from json_stream import load
 from json_stream.base import TransientAccessException
 
 
 class JSONLoadTestCase(TestCase):
-    def _test_object(self, obj, persistent, binary=False, tokenizer=default_tokenizer):
+    def _test_object(self, obj, persistent, binary=False, tokenizer=None):
         self.assertListEqual(list(self._to_data(obj, persistent, binary, tokenizer)), list(obj))
         self.assertListEqual(list(self._to_data(obj, persistent, binary, tokenizer).keys()), list(obj.keys()))
         self.assertListEqual(list(self._to_data(obj, persistent, binary, tokenizer).values()), list(obj.values()))
@@ -40,7 +39,7 @@ class JSONLoadTestCase(TestCase):
             with self.assertRaises(TransientAccessException):
                 data.items()  # can't get keys
 
-    def _test_list(self, obj, persistent, binary=False, tokenizer=default_tokenizer):
+    def _test_list(self, obj, persistent, binary=False, tokenizer=None):
         self.assertListEqual(list(self._to_data(obj, persistent, binary, tokenizer)), list(obj))
         if persistent:
             self.assertEqual(len(self._to_data(obj, persistent, binary, tokenizer)), len(obj))
