@@ -1,10 +1,11 @@
+import typing
 from collections import deque
 from functools import wraps
 
 
 class Streamable:
-    def __init__(self, iterable):
-        super().__init__()
+    def __init__(self, iterable, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._it = iter(iterable)
         self._cache = deque()
 
@@ -48,6 +49,9 @@ class StreamableDict(Streamable, dict):
         for lists, except items are provided by passed in
         generator. Generator must produce pairs of key/value
     """
+    def __init__(self, iterable):
+        super().__init__(iterable, {'__error__': 'json-stream error'})
+
     def items(self):
         return self
 
