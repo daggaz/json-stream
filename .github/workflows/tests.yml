@@ -1,20 +1,22 @@
 # This workflow will install Python dependencies, run tests and lint with a variety of Python versions
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
-
-name: Tests
+name: CI
 
 on:
+  # run tests on any push to any branch, version tags, and on pull requests
   push:
+    branches: ['**']
+    tags: ['v*']
   pull_request:
 
 jobs:
-  build:
-
+  # TEST JOB (multi-Python matrix)
+  test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
     - uses: actions/checkout@v3
@@ -44,3 +46,55 @@ jobs:
         pip install json-stream-rs-tokenizer
         rm -f src/json_stream_rs_tokenizer.py
         pytest
+
+  # PUBLISH JOB (only on tag push)
+  publish:
+    # This job will only run if the "test" job succeeds
+    needs: test
+    runs-on: ubuntu-latest
+    
+    # Only run if event is a tag push matching "v*"
+    # e.g. refs/tags/v1.2.3
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.13"
+
+    - name: Verify tag matches pyproject.toml
+      id: check_version
+      run: |
+        python <<EOF
+        import os, sys, tomllib
+        from pathlib import Path
+    
+        data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+        version = data["project"]["version"]
+        
+        tag = os.environ.get("GITHUB_REF", "").split("/")[-1]
+        
+        if tag.lstrip("v") != version:
+            print(f"ERROR: Tag {tag} does not match pyproject.toml version {version}.")
+            sys.exit(1)
+    
+        print(f"Version check passed: tag {tag} matches pyproject.toml version {version}.")
+        with open(os.environ["GITHUB_OUTPUT"], "a") as gh_out:
+            gh_out.write(f"version={version}\n")
+        EOF
+
+    - name: Build
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install build twine
+        python -m build
+
+    - name: Publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
