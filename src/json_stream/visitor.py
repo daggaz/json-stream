@@ -1,6 +1,7 @@
 from json_stream.base import StreamingJSONObject, StreamingJSONList, StreamingJSONBase
 from json_stream.iterators import ensure_file
 from json_stream.select_tokenizer import default_tokenizer
+from json_stream.tokenizer import TokenType
 
 
 def _visit(obj, visitor, path):
@@ -22,6 +23,9 @@ def _visit(obj, visitor, path):
 def visit(fp_or_iterator, visitor, tokenizer=default_tokenizer):
     fp = ensure_file(fp_or_iterator)
     token_stream = tokenizer(fp)
-    _, token = next(token_stream)
-    obj = StreamingJSONBase.factory(token, token_stream, persistent=False)
+    token_type, token = next(token_stream)
+    if token_type == TokenType.OPERATOR:
+        obj = StreamingJSONBase.factory(token, token_stream, persistent=False)
+    else:
+        obj = token
     _visit(obj, visitor, ())
