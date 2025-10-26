@@ -20,6 +20,7 @@ All types of contributions are encouraged and valued. See the [Table of Contents
   - [Reporting Bugs](#reporting-bugs)
   - [Suggesting Enhancements](#suggesting-enhancements)
   - [Improving The Documentation](#improving-the-documentation)
+  - [Code contributions](#code-contributions)
 
 
 ## Code of Conduct
@@ -99,7 +100,7 @@ Once it's filed:
 
 - The project team will label the issue accordingly.
 - A team member will try to reproduce the issue with your provided steps. If there are no reproduction steps or no obvious way to reproduce the issue, the team will ask you for those steps and mark the issue as `needs-repro`. Bugs with the `needs-repro` tag will not be addressed until they are reproduced.
-- If the team is able to reproduce the issue, it will be marked `needs-fix`, as well as possibly other tags (such as `critical`), and the issue will be left to be [implemented by someone](#your-first-code-contribution).
+- If the team is able to reproduce the issue, it will be marked `needs-fix`, as well as possibly other tags (such as `critical`), and the issue will be left to be [implemented by someone](#code-contributions).
 
 <!-- You might want to create an issue template for bugs and errors that can be used as a guide and that defines the structure of the information to be included. If you do so, reference it here in the description. -->
 
@@ -138,15 +139,26 @@ or if you have a suggestion or enhancement you can contribute yourself.
 The documentation is currently entirely in the [readme](README.md). Proper docs
 would be good, docstrings in the code would be good.
 
-### Build
-```bash
-cd ~/sources/json-stream/
-python3 -m venv ~/build/
-. ~/build/bin/activate
-pip install --upgrade build twine
-python -m build
-twine upload dist/*
-```
+### CI/CD
+
+Continuous Integration and Continuous Deployment are handled by 
+[GitHub Actions](https://github.com/daggaz/json-stream/blob/master/.github/workflows/tests.yml).
+
+#### Continuous Integration
+
+Every commit to a branch is run through automated unit tests and
+flake8.
+
+The same steps are run on every pull request on a synthetic merge
+commit.
+
+#### Continuous Deployment
+
+Any git tag pushed that starts with a "v" (i.e. `v1.2.3`) is also
+tested. If the tests pass, and the tag version matches the
+version declared in `pyproject.toml`, a new build is automatically
+pushed to PyPI.
+
 
 <!-- omit in toc -->
 ## Attribution

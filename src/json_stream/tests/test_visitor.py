@@ -17,6 +17,11 @@ class TestVisitor(TestCase):
         json_stream.visit(BytesIO(self.JSON.encode()), lambda a, b: visited.append((a, b)))
         self._assert_data_okay(visited)
 
+    def test_visitor_primitive(self):
+        visited = []
+        json_stream.visit(StringIO("1"), lambda a, b: visited.append((a, b)))
+        self.assertListEqual([(1, ())], visited)
+
     def _assert_data_okay(self, visited):
         self.assertListEqual([
             (1, ('x',)),
