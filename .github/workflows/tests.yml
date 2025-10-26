@@ -51,6 +51,7 @@ jobs:
       with:
         file: ./coverage.xml
         fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   # PUBLISH JOB (only on tag push)
   publish:
