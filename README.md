@@ -9,8 +9,8 @@ Simple streaming JSON parser and encoder.
 
 When [reading](#reading) JSON data, `json-stream` can decode JSON data in 
 a streaming manner, providing a pythonic dict/list-like interface, or a
-[visitor-based interfeace](#visitor). Can stream from files, [URLs](#urls) 
-or [iterators](#iterators).
+[visitor-based interfeace](#visitor). It can stream from files, [URLs](#urls) 
+or [iterators](#iterators). It can process [multiple JSON documents](#multiple) in a single stream.
 
 When [writing](#writing) JSON data, `json-stream` can stream JSON objects 
 as you generate them.
@@ -224,6 +224,41 @@ Output:
 z at path ('xxxx', 3)
 1 at path ('xxxx', 4)
 [] at path ('xxxx', 5)
+```
+
+### <a id="multiple"></a> Multiple JSON documents: load_many() and visit_many()
+
+Sometimes JSON data arrives as a sequence of top‑level JSON texts rather than a single array/object. json-stream supports this pattern with:
+- json_stream.load_many(...): yields each top-level JSON value as it is parsed.
+- json_stream.visit_many(...): visits each top-level JSON value and yields control after each one.
+
+These functions are useful for common streaming formats:
+- NDJSON (Newline-Delimited JSON, also known as JSON Lines, content-type often application/x-ndjson): one JSON value per line, separated by a single "\n".
+- Concatenated or sequential JSON documents: complete JSON texts written back-to-back without delimiters.
+
+Examples
+
+Read many from a file containing NDJSON or concatenated JSON:
+```python
+import json_stream
+
+with open("events.ndjson", "rb") as f:  # NDJSON: one JSON object per line
+    for item in json_stream.load_many(f):
+        # each item is the top-level item in each JSON text
+        handle(item)
+```
+
+Visit many values in many documents:
+```python
+import json_stream
+
+def visitor(value, path):
+    # called depth-first for each value within the current top-level JSON text
+    ...
+
+for _ in json_stream.visit_many(open("events.ndjson", "rb"), visitor):
+    # loop advances one top-level JSON text at a time
+    pass
 ```
 
 ### <a id="urls"></a> Stream a URL
