@@ -5,7 +5,7 @@ from json_stream_rs_tokenizer import rust_tokenizer_or_raise, ExtensionException
 
 try:
     default_tokenizer = rust_tokenizer_or_raise()
-except ExtensionException as e:
+except ExtensionException as e:  # pragma: no cover
     warn(str(e), category=ImportWarning)  # ImportWarnings are ignored by default
     default_tokenizer = tokenize
 
