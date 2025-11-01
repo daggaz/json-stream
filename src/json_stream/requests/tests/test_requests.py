@@ -4,7 +4,8 @@ from itertools import zip_longest
 from unittest import TestCase
 from unittest.mock import Mock
 
-from json_stream.requests import load, visit
+from json_stream import to_standard_types
+from json_stream.requests import load, visit, load_many, visit_many
 
 
 class TestLoad(TestCase):
@@ -17,13 +18,14 @@ class TestLoad(TestCase):
         args = [iter(iterable)] * n
         return zip_longest(*args, fillvalue="")
 
-    def _create_mock_response(self):
+    def _create_mock_response(self, data=None):
         # requests iter_content returns an iterable of bytes
         response = Mock()
-        data = json.dumps({
-            "a": "a" * io.DEFAULT_BUFFER_SIZE,
-            "b": "b",
-        })
+        if data is None:
+            data = json.dumps({
+                "a": "a" * io.DEFAULT_BUFFER_SIZE,
+                "b": "b",
+            })
         content = ("".join(chunk).encode() for chunk in self.grouper(data, 1024))
         response.iter_content.return_value = content
         return response
@@ -70,3 +72,37 @@ class TestLoad(TestCase):
             ('a' * io.DEFAULT_BUFFER_SIZE, ('a',)),
             ('b', ('b',)),
         ], visited)
+
+    def test_load_many(self):
+        expected = [{
+            "a": "a" * io.DEFAULT_BUFFER_SIZE,
+        }, {
+            "b": "b" * io.DEFAULT_BUFFER_SIZE,
+        }]
+        data = "".join(json.dumps(i) for i in expected)
+        response = self._create_mock_response(data=data)
+        count = 0
+        for item, exp in zip(load_many(response), expected):
+            self.assertEqual(exp, to_standard_types(item))
+            count += 1
+        self.assertEqual(count, len(expected))
+
+    def test_visit_many(self):
+        items = [{
+            "a": "a" * io.DEFAULT_BUFFER_SIZE,
+        }, {
+            "b": "b" * io.DEFAULT_BUFFER_SIZE,
+        }]
+        data = "".join(json.dumps(e) for e in items)
+        response = self._create_mock_response(data=data)
+        current_visit = []
+        visits = []
+
+        def visitor(item, path):
+            current_visit.append((item, path))
+        for _ in visit_many(response, visitor):
+            visits.append(current_visit)
+            current_visit = []
+        self.assertEqual(len(visits), len(items))
+        self.assertEqual(visits[0], [('a' * io.DEFAULT_BUFFER_SIZE, ('a',))])
+        self.assertEqual(visits[1], [('b' * io.DEFAULT_BUFFER_SIZE, ('b',))])

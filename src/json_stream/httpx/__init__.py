@@ -13,5 +13,13 @@ def load(response, persistent=False, tokenizer=default_tokenizer, chunk_size=CON
     return json_stream.load(_to_iterable(response, chunk_size), persistent=persistent, tokenizer=tokenizer)
 
 
+def load_many(response, persistent=False, tokenizer=default_tokenizer, chunk_size=CONTENT_CHUNK_SIZE):
+    return json_stream.load_many(_to_iterable(response, chunk_size), persistent=persistent, tokenizer=tokenizer)
+
+
 def visit(response, visitor, tokenizer=default_tokenizer, chunk_size=CONTENT_CHUNK_SIZE):
     return json_stream.visit(_to_iterable(response, chunk_size), visitor, tokenizer=tokenizer)
+
+
+def visit_many(response, visitor, tokenizer=default_tokenizer, chunk_size=CONTENT_CHUNK_SIZE):
+    return json_stream.visit_many(_to_iterable(response, chunk_size), visitor, tokenizer=tokenizer)

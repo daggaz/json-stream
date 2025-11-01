@@ -20,12 +20,18 @@ def _visit(obj, visitor, path):
         visitor(obj, path)
 
 
-def visit(fp_or_iterator, visitor, tokenizer=default_tokenizer):
+def visit_many(fp_or_iterator, visitor, tokenizer=default_tokenizer):
     fp = ensure_file(fp_or_iterator)
     token_stream = tokenizer(fp)
-    token_type, token = next(token_stream)
-    if token_type == TokenType.OPERATOR:
-        obj = StreamingJSONBase.factory(token, token_stream, persistent=False)
-    else:
-        obj = token
-    _visit(obj, visitor, ())
+    for token_type, token in token_stream:
+        if token_type == TokenType.OPERATOR:
+            obj = StreamingJSONBase.factory(token, token_stream, persistent=False)
+            _visit(obj, visitor, ())
+            obj.read_all()
+        else:
+            _visit(token, visitor, ())
+        yield
+
+
+def visit(fp_or_iterator, visitor, tokenizer=default_tokenizer):
+    next(visit_many(fp_or_iterator, visitor, tokenizer))
