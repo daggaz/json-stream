@@ -236,6 +236,30 @@ These functions are useful for common streaming formats:
 - NDJSON (Newline-Delimited JSON, also known as JSON Lines, content-type often application/x-ndjson): one JSON value per line, separated by a single "\n".
 - Concatenated or sequential JSON documents: complete JSON texts written back-to-back without delimiters.
 
+Note about concatenated JSON without explicit delimiters
+
+When multiple top‑level JSON documents are simply concatenated with 
+no delimiters (no newlines or no spaces), json-stream can unambiguously 
+detect the document boundaries for the following top-level values:
+- objects: `{ ... }`
+- arrays: `[ ... ]`
+- literals: `true`, `false`, `null`
+
+However, numbers and strings require a delimiter between consecutive
+documents so the tokenizer can tell where one ends and the next begins.
+A delimiter can be as simple as a single whitespace or a newline. 
+
+Examples:
+- Valid without delimiters (will parse as 2 docs):
+  - `{"a":1}{"b":2}` → `{...}`, `{...}`
+  - `[1][2]` → `[1]`, `[2]`
+  - `truefalse` → `true`, `false`
+  - `null[]` → `null`, `[]`
+- These will error without a delimiter between documents (e.g. a space or newline):
+  - `3true`
+  - `0"x"`
+  - `"hi""there"
+
 Examples
 
 Read many from a file containing NDJSON or concatenated JSON:
