@@ -7,7 +7,7 @@ from json_stream.writer import streamable_dict, streamable_list
 
 class BaseTestWriter:
     def dump(self, o):
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     def test_writer_wrapper(self):
         def dict_content(n):
@@ -35,7 +35,7 @@ class BaseTestWriter:
         @streamable_list
         def empty_list():
             for i in range(0):  # never yields
-                yield i
+                yield i  # pragma: no cover
 
         o = empty_list()
         result = self.dump(o)
