@@ -9,7 +9,7 @@ Simple streaming JSON parser and encoder.
 
 When [reading](#reading) JSON data, `json-stream` can decode JSON data in 
 a streaming manner, providing a pythonic dict/list-like interface, or a
-[visitor-based interfeace](#visitor). It can stream from files, [URLs](#urls) 
+[visitor-based interface](#visitor). It can stream from files, [URLs](#urls) 
 or [iterators](#iterators). It can process [multiple JSON documents](#multiple) in a single stream.
 
 When [writing](#writing) JSON data, `json-stream` can stream JSON objects 
@@ -229,14 +229,14 @@ z at path ('xxxx', 3)
 ### <a id="multiple"></a> Multiple JSON documents: load_many() and visit_many()
 
 Sometimes JSON data arrives as a sequence of top‑level JSON texts rather than a single array/object. json-stream supports this pattern with:
-- json_stream.load_many(...): yields each top-level JSON value as it is parsed.
-- json_stream.visit_many(...): visits each top-level JSON value and yields control after each one.
+- `json_stream.load_many(...)`: yields each top-level JSON value as it is parsed.
+- `json_stream.visit_many(...)`: visits each top-level JSON value and yields control after each one.
 
 These functions are useful for common streaming formats:
 - NDJSON (Newline-Delimited JSON, also known as JSON Lines, content-type often application/x-ndjson): one JSON value per line, separated by a single "\n".
 - Concatenated or sequential JSON documents: complete JSON texts written back-to-back without delimiters.
 
-Note about concatenated JSON without explicit delimiters
+Note about concatenated JSON without explicit delimiters:
 
 When multiple top‑level JSON documents are simply concatenated with 
 no delimiters (no newlines or no spaces), json-stream can unambiguously 
@@ -260,7 +260,7 @@ Examples:
   - `0"x"`
   - `"hi""there"
 
-Examples
+#### Examples
 
 Read many from a file containing NDJSON or concatenated JSON:
 ```python
