@@ -226,7 +226,7 @@ z at path ('xxxx', 3)
 [] at path ('xxxx', 5)
 ```
 
-### <a id="multiple"></a> Multiple JSON documents: load_many() and visit_many()
+### <a id="multiple"></a> Multiple JSON documents: `load_many()` and `visit_many()`
 
 Sometimes JSON data arrives as a sequence of top‑level JSON texts rather than a single array/object. json-stream supports this pattern with:
 - `json_stream.load_many(...)`: yields each top-level JSON value as it is parsed.
