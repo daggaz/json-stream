@@ -391,8 +391,7 @@ with httpx.Client() as client, client.stream('GET', 'http://example.com/data.jso
 
 ### <a id="iterators"></a> Stream an iterable
 
-`json-stream`'s parsing functions can take any iterable object that produces encoded JSON as
-`byte` objects.
+`json-stream`'s parsing functions can take any iterable that produces encoded JSON chunks. The chunks can be `byte`s or `str`s.
 
 ```python
 import json_stream
