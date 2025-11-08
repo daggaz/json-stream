@@ -1,6 +1,7 @@
 # json-stream
 
 [![Tests](https://github.com/daggaz/json-stream/actions/workflows/tests.yml/badge.svg)](https://github.com/daggaz/json-stream/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/daggaz/json-stream/graph/badge.svg?token=SWWYF2KHMC)](https://codecov.io/gh/daggaz/json-stream)
 [![PyPI package and version badge](https://img.shields.io/pypi/v/json-stream)](https://pypi.org/project/json-stream)
 [![Supported Python versions badge](https://img.shields.io/pypi/pyversions/json-stream)](https://pypi.org/project/json-stream/)
 [![Donate](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-blue.svg)](https://www.buymeacoffee.com/daggaz)
