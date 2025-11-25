@@ -91,7 +91,7 @@ def _ensure_text(stream):
 
 class Tokenizer(Iterable[Token], AsyncIterable[Token]):
     def __init__(self, stream):
-        self.stream = stream
+        self.stream = _ensure_text(stream)
         self.token_buffer = []
         self.unicode_buffer = ""
         self.state = State.WHITESPACE
