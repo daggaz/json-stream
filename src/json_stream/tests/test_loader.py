@@ -10,10 +10,10 @@ from json_stream.base import (
     TransientStreamingJSONObject,
     PersistentStreamingJSONList,
 )
-from json_stream.tests import JSONLoadTestCase
+from json_stream.tests import SyncJSONLoadTestCase
 
 
-class TestLoader(JSONLoadTestCase):
+class TestSyncLoader(SyncJSONLoadTestCase):
     def test_load_empty_object(self):
         obj = {}
         self._test_object(obj, persistent=True)
@@ -29,61 +29,6 @@ class TestLoader(JSONLoadTestCase):
         self._test_object(obj, persistent=True, binary=True)
         self._test_object(obj, persistent=False, binary=True)
 
-    def test_load_object_get_persistent(self):
-        json_str = '{"a": 1, "b": null, "c": true}'
-
-        # Access in order
-        data = load(StringIO(json_str), persistent=True)
-        self.assertEqual(data['a'], 1)
-        self.assertEqual(data['b'], None)
-        self.assertEqual(data['c'], True)
-        with self.assertRaises(KeyError):
-            _ = data['d']
-
-        # Access out of order
-        data = load(StringIO(json_str), persistent=True)
-        self.assertEqual(data['b'], None)
-        self.assertEqual(data['a'], 1)
-        self.assertEqual(data['c'], True)
-        with self.assertRaises(KeyError):
-            _ = data['d']
-
-        # Access with key error first order
-        data = load(StringIO(json_str), persistent=True)
-        with self.assertRaises(KeyError):
-            _ = data['d']
-        self.assertEqual(data['a'], 1)
-        self.assertEqual(data['b'], None)
-        self.assertEqual(data['c'], True)
-
-    def test_load_object_get_transient(self):
-        json_str = '{"a": 1, "b": null, "c": true}'
-
-        # Access in order
-        data = load(StringIO(json_str), persistent=False)
-        self.assertEqual(data['a'], 1)
-        self.assertEqual(data['b'], None)
-        self.assertEqual(data['c'], True)
-        with self.assertRaises(TransientAccessException):
-            _ = data['d']
-
-        # Access out of order
-        data = load(StringIO(json_str), persistent=False)
-        self.assertEqual(data['b'], None)
-        with self.assertRaises(TransientAccessException):
-            _ = data['a']
-        with self.assertRaises(TransientAccessException):
-            _ = data['c']  # stream was exhausted in search for 'a'
-        with self.assertRaises(TransientAccessException):
-            _ = data['d']  # don't know if this was a key error or was in the past
-
-        # Access with key error first order
-        data = load(StringIO(json_str), persistent=False)
-        with self.assertRaises(KeyError):
-            _ = data['d']
-        with self.assertRaises(TransientAccessException):
-            _ = data['a']  # stream was exhausted in search for 'd'
-
     def test_load_empty_list(self):
         obj = []
         self._test_list(obj, persistent=True)
@@ -94,11 +39,66 @@ class TestLoader(JSONLoadTestCase):
         self._test_list(obj, persistent=True)
         self._test_list(obj, persistent=False)
 
-    def test_load_list_get_persistent(self):
-        json_str = '[1, true, ""]'
+    def test_load_object_get_persistent(self):
+        obj = {"a": 1, "b": None, "c": True}
 
         # Access in order
-        data = load(StringIO(json_str), persistent=True)
+        data = load(self._to_stream(obj), persistent=True)
+        self.assertEqual(data['a'], 1)
+        self.assertEqual(data['b'], None)
+        self.assertEqual(data['c'], True)
+        with self.assertRaises(KeyError):
+            _ = data['d']
+
+        # Access out of order
+        data = load(self._to_stream(obj), persistent=True)
+        self.assertEqual(data['b'], None)
+        self.assertEqual(data['a'], 1)
+        self.assertEqual(data['c'], True)
+        with self.assertRaises(KeyError):
+            _ = data['d']
+
+        # Access with key error first order
+        data = load(self._to_stream(obj), persistent=True)
+        with self.assertRaises(KeyError):
+            _ = data['d']
+        self.assertEqual(data['a'], 1)
+        self.assertEqual(data['b'], None)
+        self.assertEqual(data['c'], True)
+
+    def test_load_object_get_transient(self):
+        obj = {"a": 1, "b": None, "c": True}
+
+        # Access in order
+        data = load(self._to_stream(obj), persistent=False)
+        self.assertEqual(data['a'], 1)
+        self.assertEqual(data['b'], None)
+        self.assertEqual(data['c'], True)
+        with self.assertRaises(TransientAccessException):
+            _ = data['d']
+
+        # Access out of order
+        data = load(self._to_stream(obj), persistent=False)
+        self.assertEqual(data['b'], None)
+        with self.assertRaises(TransientAccessException):
+            _ = data['a']
+        with self.assertRaises(TransientAccessException):
+            _ = data['c']  # stream was exhausted in search for 'a'
+        with self.assertRaises(TransientAccessException):
+            _ = data['d']  # don't know if this was a key error or was in the past
+
+        # Access with key error first order
+        data = load(self._to_stream(obj), persistent=False)
+        with self.assertRaises(KeyError):
+            _ = data['d']
+        with self.assertRaises(TransientAccessException):
+            _ = data['a']  # stream was exhausted in search for 'd'
+
+    def test_load_list_get_persistent(self):
+        obj = [1, True, ""]
+
+        # Access in order
+        data = load(self._to_stream(obj), persistent=True)
         self.assertEqual(data[0], 1)
         self.assertTrue(data[1])
         self.assertEqual(data[2], "")
@@ -106,7 +106,7 @@ class TestLoader(JSONLoadTestCase):
             _ = data[3]
 
         # Access out of order
-        data = load(StringIO(json_str), persistent=True)
+        data = load(self._to_stream(obj), persistent=True)
         self.assertTrue(data[1])
         self.assertEqual(data[0], 1)
         self.assertEqual(data[2], "")
@@ -114,10 +114,10 @@ class TestLoader(JSONLoadTestCase):
             _ = data[3]
 
     def test_load_list_get_transient(self):
-        json_str = '[1, true, ""]'
+        obj = [1, True, ""]
 
         # Access in order
-        data = load(StringIO(json_str), persistent=False)
+        data = load(self._to_stream(obj), persistent=False)
         self.assertEqual(data[0], 1)
         self.assertTrue(data[1])
         self.assertEqual(data[2], "")
@@ -125,7 +125,7 @@ class TestLoader(JSONLoadTestCase):
             _ = data[3]
 
         # Access out of order
-        data = load(StringIO(json_str), persistent=False)
+        data = load(self._to_stream(obj), persistent=False)
         self.assertTrue(data[1])
         with self.assertRaises(TransientAccessException):
             _ = data[0]
@@ -134,8 +134,8 @@ class TestLoader(JSONLoadTestCase):
             _ = data[3]
 
     def test_load_nested_persistent(self):
-        json_str = '{"count": 3, "results": ["a", "b", {}]}'
-        data = load(StringIO(json_str), persistent=True)
+        obj = {"count": 3, "results": ["a", "b", {}]}
+        data = load(self._to_stream(obj), persistent=True)
         self.assertIsInstance(data, PersistentStreamingJSONObject)
         results = data['results']
         self.assertIsInstance(results, PersistentStreamingJSONList)
@@ -148,16 +148,16 @@ class TestLoader(JSONLoadTestCase):
         self.assertEqual(data["count"], 3)
 
     def test_load_nested_transient(self):
-        json_str = '{"count": 3, "results": ["a", "b", "c"]}'
-        data = load(StringIO(json_str), persistent=False)
+        obj = {"count": 3, "results": ["a", "b", "c"]}
+        data = load(self._to_stream(obj), persistent=False)
         self.assertIsInstance(data, TransientStreamingJSONObject)
         results = data['results']
         self.assertIsInstance(results, TransientStreamingJSONList)
         self.assertEqual(list(results), ['a', 'b', 'c'])
 
     def test_load_nested_transient_first_list_item_object(self):
-        json_str = '[{"a": 4}, "b", "c"]'
-        data = load(StringIO(json_str), persistent=False)
+        obj = [{"a": 4}, "b", "c"]
+        data = load(self._to_stream(obj), persistent=False)
         self.assertIsInstance(data, TransientStreamingJSONList)
         items = iter(data)
         item = next(items)
@@ -166,8 +166,8 @@ class TestLoader(JSONLoadTestCase):
         self.assertEqual(list(items), ['b', 'c'])
 
     def test_load_nested_transient_first_list_item_list(self):
-        json_str = '[["a"], "b", "c"]'
-        data = load(StringIO(json_str), persistent=False)
+        obj = [["a"], "b", "c"]
+        data = load(self._to_stream(obj), persistent=False)
         self.assertIsInstance(data, TransientStreamingJSONList)
         items = iter(data)
         item = next(items)
@@ -176,18 +176,18 @@ class TestLoader(JSONLoadTestCase):
         self.assertEqual(list(items), ['b', 'c'])
 
     def test_not_copiable(self):
-        json_str = '[["a"], "b", "c"]'
+        obj = [["a"], "b", "c"]
         with self.assertRaisesRegex(copy.Error, "^Copying json_steam objects leads to a bad time$"):
-            copy.copy(load(StringIO(json_str)))
+            copy.copy(load(self._to_stream(obj)))
         with self.assertRaisesRegex(copy.Error, "^Copying json_steam objects leads to a bad time$"):
-            copy.deepcopy(load(StringIO(json_str)))
+            copy.deepcopy(load(self._to_stream(obj)))
 
     def test_transient_to_persistent(self):
-        json_str = '{"results": [{"x": 1, "y": 3}, {"y": 4, "x": 2}]}'
+        obj = {"results": [{"x": 1, "y": 3}, {"y": 4, "x": 2}]}
         xs = iter((1, 2))
         ys = iter((3, 4))
 
-        data = load(StringIO(json_str))  # data is a transient dict-like object
+        data = load(self._to_stream(obj))  # data is a transient dict-like object
         self.assertIsInstance(data, TransientStreamingJSONObject)
 
         results = data['results']
@@ -204,8 +204,8 @@ class TestLoader(JSONLoadTestCase):
             self.assertEqual(result['x'], x)  # would error without .persistent()
 
     def test_persistent_to_transient(self):
-        json_str = """{"a": 1, "x": ["long", "list", "I", "don't", "want", "in", "memory"], "b": 2}"""
-        data = load(StringIO(json_str), persistent=True).transient()
+        obj = {"a": 1, "x": ["long", "list", "I", "don't", "want", "in", "memory"], "b": 2}
+        data = load(self._to_stream(obj), persistent=True).transient()
         self.assertIsInstance(data, PersistentStreamingJSONObject)
 
         self.assertEqual(data["a"], 1)

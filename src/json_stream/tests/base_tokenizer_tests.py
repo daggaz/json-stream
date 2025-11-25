@@ -1,8 +1,6 @@
 """
-Taken from the NAYA project
-
+Originally based on tests from the NAYA project
 https://github.com/danielyule/naya
-
 Copyright (c) 2019 Daniel Yule
 """
 import re
@@ -12,9 +10,9 @@ from unittest import TestCase
 from json_stream.tokenizer import tokenize, TokenType
 
 
-class TestJsonTokenization(TestCase):
+class JsonTokenizationTestCase(TestCase):
     def tokenize_sequence(self, string):
-        return [token for token in tokenize(StringIO(string))]
+        raise NotImplementedError
 
     def assertNumberEquals(self, expected, actual):
         token_list = self.tokenize_sequence(actual)
@@ -24,7 +22,6 @@ class TestJsonTokenization(TestCase):
         self.assertEqual(ttype, TokenType.NUMBER)
 
     def assertOperatorEquals(self, expected, actual):
-
         token_list = self.tokenize_sequence(actual)
         ttype, token = token_list[0]
         self.assertEqual(expected, token)
