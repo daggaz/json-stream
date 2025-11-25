@@ -95,6 +95,10 @@ class Tokenizer(Iterable[Token], AsyncIterable[Token]):
         self.token_buffer = []
         self.unicode_buffer = ""
         self.state = State.WHITESPACE
+        self.index = -1
+        self.c = None
+        self.advance = True
+        self.eof = False
 
     def is_delimiter(self, char: str):
         return char.isspace() or char in "{}[]:," or char == SpecialChar.EOF
@@ -362,23 +366,28 @@ class Tokenizer(Iterable[Token], AsyncIterable[Token]):
 
         return advance, token
 
-    def __iter__(self) -> Iterator[Token]:
-        c = self.stream.read(1)
-        index = 0
-        while c:
+    def __next__(self) -> Token:
+        while not self.eof:
+            if self.advance:
+                self.c = self.stream.read(1)
+                self.index += 1
+                if not self.c:
+                    self.eof = True
+                    _, token = self.process_char(SpecialChar.EOF)
+                    if token:
+                        return token
+                    break
             try:
-                advance, token = self.process_char(c)
+                self.advance, token = self.process_char(self.c)
             except ValueError as e:
-                raise ValueError("".join([e.args[0], " at index {}".format(index)]))
+                raise ValueError("".join([e.args[0], " at index {}".format(self.index)]))
             if token:
                 self.token_buffer = []
-                yield token
-            if advance:
-                c = self.stream.read(1)
-                index += 1
-        _, token = self.process_char(SpecialChar.EOF)
-        if token:
-            yield token
+                return token
+        raise StopIteration()
+
+    def __iter__(self) -> Iterator[Token]:
+        return self
 
     def __await__(self):
         async def _return_self():
