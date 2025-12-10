@@ -1,6 +1,7 @@
-from json_stream.base import StreamingJSONBase, TokenType
+from json_stream.base import StreamingJSONBase
 from json_stream.iterators import ensure_file
 from json_stream.select_tokenizer import default_tokenizer
+from json_stream.tokenizer import TokenType
 
 
 def load(fp_or_iterable, persistent=False, tokenizer=default_tokenizer):

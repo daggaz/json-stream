@@ -10,10 +10,10 @@ from json_stream.base import (
     TransientStreamingJSONObject,
     PersistentStreamingJSONList,
 )
-from json_stream.tests import SyncJSONLoadTestCase
+from json_stream.tests import JsonStreamTestCase
 
 
-class TestSyncLoader(SyncJSONLoadTestCase):
+class TestSyncLoader(JsonStreamTestCase):
     def test_load_empty_object(self):
         obj = {}
         self._test_object(obj, persistent=True)

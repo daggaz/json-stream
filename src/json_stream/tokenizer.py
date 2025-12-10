@@ -5,7 +5,7 @@ Copyright (c) 2019 Daniel Yule
 """
 import io
 import unicodedata
-from typing import Optional, Iterator, AsyncIterator, Protocol, AsyncIterable, Iterable, overload
+from typing import Optional, Iterator, AsyncIterator, Protocol, AsyncIterable, Iterable, overload, Awaitable
 
 SURROGATE = 'Cs'
 
@@ -91,7 +91,7 @@ def _ensure_text(stream):
 
 class Tokenizer(Iterable[Token], AsyncIterable[Token]):
     def __init__(self, stream):
-        self.stream = _ensure_text(stream)
+        self.stream = _ensure_text(stream)  # todo how to deal with async?
         self.token_buffer = []
         self.unicode_buffer = ""
         self.state = State.WHITESPACE
@@ -416,8 +416,8 @@ class Tokenizer(Iterable[Token], AsyncIterable[Token]):
 @overload
 def tokenize(stream: SyncReadable) -> Iterable[Token]: ...
 @overload
-def tokenize(stream: AsyncReadable) -> AsyncIterable[Token]: ...
+def tokenize(stream: AsyncReadable) -> Awaitable[AsyncIterable[Token]]: ...
 
 
-def tokenize(stream: AsyncReadable | SyncReadable) -> Iterable[Token] | AsyncIterable[Token]:
+def tokenize(stream: AsyncReadable | SyncReadable) -> Iterable[Token] | Awaitable[AsyncIterable[Token]]:
     return Tokenizer(stream)

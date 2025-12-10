@@ -9,7 +9,7 @@ from json_stream.base import TransientAccessException
 from json_stream.tokenizer import tokenize
 
 
-class JSONLoadTestCase(TestCase):
+class JsonStreamTestCase(TestCase):
     def _test_object(self, obj, persistent, binary=False):
         self.assertListEqual(list(self._to_data(obj, persistent, binary)), list(obj))
         self.assertListEqual(list(self._to_data(obj, persistent, binary).keys()), list(obj.keys()))
@@ -57,14 +57,6 @@ class JSONLoadTestCase(TestCase):
         return tokenize
 
     def _to_stream(self, obj, *, binary=False):
-        raise NotImplementedError()
-
-    def _to_data(self, obj, persistent, binary):
-        raise NotImplementedError()
-
-
-class SyncJSONLoadTestCase(JSONLoadTestCase):
-    def _to_stream(self, obj, *, binary=False):
         data = json.dumps(obj)
         if binary:
             return BytesIO(data.encode())
@@ -74,22 +66,6 @@ class SyncJSONLoadTestCase(JSONLoadTestCase):
         stream = self._to_stream(obj, binary=binary)
         tokenizer = self._tokenizer()
         return load(stream, persistent=persistent, tokenizer=tokenizer)
-
-
-class AsyncJSONLoadTestCase(JSONLoadTestCase):
-    def _to_stream(self, obj, *, binary=False):
-        data = json.dumps(obj)
-        if binary:
-            return ABytesIO(data.encode())
-        return AStringIO(data)
-
-    def _to_data(self, obj, persistent, binary):
-        return asyncio.run(self._ato_data(obj, persistent, binary))
-
-    async def _ato_data(self, obj, persistent, binary):
-        stream = self._to_stream(obj, binary=binary)
-        tokenizer = self._tokenizer()
-        return await aload(stream, persistent=persistent, tokenizer=tokenizer)
 
 
 class ABytesIO:
