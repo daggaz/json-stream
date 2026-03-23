@@ -1,10 +1,10 @@
 import asyncio
 import copy
 import json
-from io import StringIO
+from io import StringIO, BytesIO
 from unittest import IsolatedAsyncioTestCase
 
-from json_stream import load
+from json_stream import load, aload
 from json_stream.base import (
     TransientAccessException,
     PersistentStreamingJSONObject,
@@ -12,19 +12,35 @@ from json_stream.base import (
     TransientStreamingJSONObject,
     PersistentStreamingJSONList,
 )
-from json_stream.tests import JsonStreamTestCase
+from json_stream.tests import JsonStreamTestCase, AStringIO, ABytesIO
+from json_stream.tokenizer import tokenize
 
 
 class TestAsyncLoader(IsolatedAsyncioTestCase):
+
+    def _tokenizer(self):
+        return tokenize
+
+    async def _to_stream(self, obj, *, binary=False):
+        data = json.dumps(obj)
+        if binary:
+            return ABytesIO(data.encode())
+        return AStringIO(data)
+
+    async def _to_data(self, obj, persistent, binary):
+        stream = await self._to_stream(obj, binary=binary)
+        tokenizer = self._tokenizer()
+        return await aload(stream, persistent=persistent, tokenizer=tokenizer)
+
     async def _test_object(self, obj, persistent, binary=False):
-        pass
+        self.assertListEqual(list(await self._to_data(obj, persistent, binary)), list(obj))
 
     async def test_load_empty_object(self):
         obj = {}
-        await asyncio.gather([
+        await asyncio.gather(
             self._test_object(obj, persistent=True),
             self._test_object(obj, persistent=False),
-        ])
+        )
 
     # def test_load_object(self):
     #     obj = {"a": 1, "b": None, "c": True}

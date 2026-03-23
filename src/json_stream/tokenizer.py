@@ -89,9 +89,27 @@ def _ensure_text(stream):
     return stream
 
 
+async def _aensure_text(stream):
+    data = await stream.read(0)
+    if isinstance(data, bytes):
+        encoding = _guess_encoding(stream)
+        return AsyncTextReader(stream, encoding)
+    return stream
+
+
+class AsyncTextReader:
+    def __init__(self, stream, encoding="utf-8"):
+        self.stream = stream
+        self.encoding = encoding
+
+    async def read(self, n=-1):
+        data = await self.stream.read(n)
+        return data.decode(self.encoding)
+
+
 class Tokenizer(Iterable[Token], AsyncIterable[Token]):
     def __init__(self, stream):
-        self.stream = _ensure_text(stream)  # todo how to deal with async?
+        self.stream = stream
         self.token_buffer = []
         self.unicode_buffer = ""
         self.state = State.WHITESPACE
@@ -387,6 +405,7 @@ class Tokenizer(Iterable[Token], AsyncIterable[Token]):
         raise StopIteration()
 
     def __iter__(self) -> Iterator[Token]:
+        self.stream = _ensure_text(self.stream)
         return self
 
     def __await__(self):
@@ -395,6 +414,7 @@ class Tokenizer(Iterable[Token], AsyncIterable[Token]):
         return _return_self().__await__()
 
     async def __aiter__(self) -> AsyncIterator[Token]:
+        self.stream = await _aensure_text(self.stream)
         c = await self.stream.read(1)
         index = 0
         while c:

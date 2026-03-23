@@ -82,9 +82,6 @@ class StreamingJSONBase(ABC):
     def __deepcopy__(self, memo):
         raise copy.Error("Copying json_steam objects leads to a bad time")
 
-    def __await__(self):
-        raise NotImplementedError()
-
 
 class PersistentStreamingJSONBase(StreamingJSONBase, ABC):
     def __init__(self, token_stream):

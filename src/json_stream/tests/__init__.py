@@ -4,7 +4,7 @@ from io import BytesIO, StringIO
 from itertools import zip_longest
 from unittest import TestCase
 
-from json_stream import load, aload
+from json_stream import load
 from json_stream.base import TransientAccessException
 from json_stream.tokenizer import tokenize
 
