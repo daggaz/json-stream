@@ -11,7 +11,8 @@ Simple streaming JSON parser and encoder.
 When [reading](#reading) JSON data, `json-stream` can decode JSON data in 
 a streaming manner, providing a pythonic dict/list-like interface, or a
 [visitor-based interface](#visitor). It can stream from files, [URLs](#urls) 
-or [iterators](#iterators). It can process [multiple JSON documents](#multiple) in a single stream.
+or [iterators](#iterators). It can process [multiple JSON documents](#multiple) 
+in a single stream, and can read JSON [mixed with other non-JSON data](#reading-mixed-data).
 
 When [writing](#writing) JSON data, `json-stream` can stream JSON objects 
 as you generate them.
@@ -495,13 +496,81 @@ significant parsing speedup compared to pure python implementation.
 `json-stream` will fallback to its pure python tokenizer implementation
 if `json-stream-rs-tokenizer` is not available.
 
+#### <a id="reading-mixed-data"></a> Reading mixed data
+
+When using the Rust tokenizer, you can also use `json-stream` to parse mixed
+data, for example a file with a JSON followed by binary data. 
+ 
+To do this, you should pass `correct_cursor=True` to `load()`. The ensures the
+rust tokenizer keeps track of the exact stream position it has read up to. This
+comes with a **significant performance cost** for un-seekable streams.
+
+After reading the JSON data, call `read_all()` on the top-level object returned
+by `load()` to ensure you are at the end of the JSON data, and then call 
+`.tokenizer.park_cursor()` "park" the underlying file cursor at the correct
+position.
+
+```python
+import json_stream
+
+with open('test.bin', 'rb') as f:
+    # read JSON header
+    header = json_stream.load(f, correct_cursor=True)
+    # ... process JSON header ...
+    header.read_all()
+
+    # ensure the tokenizer has "parked" the file 
+    # cursor at the end of the JSON data
+    header.tokenizer.park_cursor()
+
+    # now we can read binary data from the same file
+    binary_start = f.tell()
+    data = f.read()
+
+#### <a id="mixed-scenarios"></a> Other mixed data scenarios
+
+`json-stream` can also handle streams that start with binary data, or have binary
+data between multiple JSON documents.
+
+##### Binary then JSON
+
+You can simply read the binary data from the file before calling `load()`.
+
+```python
+with open('test.bin', 'rb') as f:
+    binary_data = f.read(1024)
+    data = json_stream.load(f)
+    # ... process JSON ...
+```
+
+##### JSON then binary then JSON
+
+You must use `correct_cursor=True` for any JSON document that is followed by 
+binary data.
+
+```python
+with open('test.bin', 'rb') as f:
+    # 1. Read first JSON
+    data1 = json_stream.load(f, correct_cursor=True)
+    # ... process data1 ...
+    data1.read_all()
+    data1.tokenizer.park_cursor()
+
+    # 2. Read binary data
+    binary_data = f.read(1024)
+
+    # 3. Read second JSON
+    data2 = json_stream.load(f)
+    # ... process data2 ...
+```
+
 ### Custom tokenizer
 
 You can supply an alternative JSON tokenizer implementation. Simply pass 
 a tokenizer to the `load()` or `visit()` methods.
 
 ```python
-json_stream.load(f, tokenizer=some_tokenizer)
+json_stream.load(f, tokenizer=some_tokenizer, tokenizer_kwargs=...)
 ```
 
 The requests methods also accept a customer tokenizer parameter.
