@@ -36,6 +36,10 @@ class StreamingJSONBase(ABC):
         self._stream = token_stream
         self._child: Optional[StreamingJSONBase] = None
 
+    @property
+    def tokenizer(self):
+        return self._stream
+
     def _clear_child(self):
         if self._child is not None:
             self._child.read_all()

@@ -20,9 +20,9 @@ def _visit(obj, visitor, path):
         visitor(obj, path)
 
 
-def visit_many(fp_or_iterator, visitor, tokenizer=default_tokenizer):
+def visit_many(fp_or_iterator, visitor, tokenizer=default_tokenizer, **tokenizer_kwargs):
     fp = ensure_file(fp_or_iterator)
-    token_stream = tokenizer(fp)
+    token_stream = tokenizer(fp, **tokenizer_kwargs)
     for token_type, token in token_stream:
         if token_type == TokenType.OPERATOR:
             obj = StreamingJSONBase.factory(token, token_stream, persistent=False)
@@ -33,5 +33,5 @@ def visit_many(fp_or_iterator, visitor, tokenizer=default_tokenizer):
         yield
 
 
-def visit(fp_or_iterator, visitor, tokenizer=default_tokenizer):
-    next(visit_many(fp_or_iterator, visitor, tokenizer))
+def visit(fp_or_iterator, visitor, tokenizer=default_tokenizer, **tokenizer_kwargs):
+    next(visit_many(fp_or_iterator, visitor, tokenizer, **tokenizer_kwargs))
