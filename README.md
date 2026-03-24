@@ -506,8 +506,8 @@ rust tokenizer keeps track of the exact stream position it has read up to. This
 comes with a **significant performance cost** for un-seekable streams.
 
 After reading the JSON data, call `read_all()` on the top-level object returned
-by `load()` to ensure you are at the end of the JSON data, and then call 
-`.tokenizer.park_cursor()` "park" the underlying file cursor at the correct
+by `load()` to ensure you have read up to the end of the JSON data, and then call 
+`.tokenizer.park_cursor()` to "park" the underlying file cursor at the correct
 position.
 
 ```python
@@ -570,7 +570,7 @@ You can supply an alternative JSON tokenizer implementation. Simply pass
 a tokenizer to the `load()` or `visit()` methods.
 
 ```python
-json_stream.load(f, tokenizer=some_tokenizer, tokenizer_kwargs=...)
+json_stream.load(f, tokenizer=some_tokenizer, **tokenizer_kwargs)
 ```
 
 The requests methods also accept a customer tokenizer parameter.
