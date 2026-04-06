@@ -45,6 +45,15 @@ class State:
     UNICODE_SURROGATE_START = 23
     UNICODE_SURROGATE_STRING_ESCAPE = 24
     UNICODE_SURROGATE = 25
+    NAN_1 = 26
+    NAN_2 = 27
+    INF_1 = 28
+    INF_2 = 29
+    INF_3 = 30
+    INF_4 = 31
+    INF_5 = 32
+    INF_6 = 33
+    INF_7 = 34
 
 
 class SpecialChar:
@@ -130,6 +139,10 @@ def tokenize(stream):
                 next_state = State.TRUE_1
             elif char == "n":
                 next_state = State.NULL_1
+            elif char == "N":
+                next_state = State.NAN_1
+            elif char == "I":
+                next_state = State.INF_1
             elif not char.isspace() and not char == SpecialChar.EOF:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
         elif state == State.INTEGER:
@@ -169,8 +182,10 @@ def tokenize(stream):
             elif char in "123456789":
                 next_state = State.INTEGER
                 add_char = True
+            elif char == "I":
+                next_state = State.INF_1
             else:
-                raise ValueError("A - must be followed by a digit.  Got '{0}'".format(char))
+                raise ValueError("A - must be followed by a digit or Infinity.  Got '{0}'".format(char))
         elif state == State.INTEGER_EXP_0:
             if char == "+" or char == "-" or char in "0123456789":
                 next_state = State.INTEGER_EXP
@@ -260,6 +275,55 @@ def tokenize(stream):
                 next_state = State.WHITESPACE
                 completed = True
                 now_token = (TokenType.NULL, None)
+            else:
+                raise ValueError("Invalid JSON character: '{0}'".format(char))
+        elif state == State.NAN_1:
+            if char == "a":
+                next_state = State.NAN_2
+            else:
+                raise ValueError("Invalid JSON character: '{0}'".format(char))
+        elif state == State.NAN_2:
+            if char == "N":
+                next_state = State.WHITESPACE
+                completed = True
+                now_token = (TokenType.NUMBER, float("NaN"))
+            else:
+                raise ValueError("Invalid JSON character: '{0}'".format(char))
+        elif state == State.INF_1:
+            if char == "n":
+                next_state = State.INF_2
+            else:
+                raise ValueError("Invalid JSON character: '{0}'".format(char))
+        elif state == State.INF_2:
+            if char == "f":
+                next_state = State.INF_3
+            else:
+                raise ValueError("Invalid JSON character: '{0}'".format(char))
+        elif state == State.INF_3:
+            if char == "i":
+                next_state = State.INF_4
+            else:
+                raise ValueError("Invalid JSON character: '{0}'".format(char))
+        elif state == State.INF_4:
+            if char == "n":
+                next_state = State.INF_5
+            else:
+                raise ValueError("Invalid JSON character: '{0}'".format(char))
+        elif state == State.INF_5:
+            if char == "i":
+                next_state = State.INF_6
+            else:
+                raise ValueError("Invalid JSON character: '{0}'".format(char))
+        elif state == State.INF_6:
+            if char == "t":
+                next_state = State.INF_7
+            else:
+                raise ValueError("Invalid JSON character: '{0}'".format(char))
+        elif state == State.INF_7:
+            if char == "y":
+                next_state = State.WHITESPACE
+                completed = True
+                now_token = (TokenType.NUMBER, float("".join(token) + "Infinity"))
             else:
                 raise ValueError("Invalid JSON character: '{0}'".format(char))
         elif state == State.STRING:
