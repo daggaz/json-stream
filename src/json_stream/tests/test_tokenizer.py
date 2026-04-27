@@ -5,6 +5,7 @@ https://github.com/danielyule/naya
 
 Copyright (c) 2019 Daniel Yule
 """
+import math
 import re
 from io import StringIO
 from unittest import TestCase
@@ -58,6 +59,33 @@ class TestJsonTokenization(TestCase):
         self.assertRaises(ValueError, self.tokenize_sequence, "3.e10")
         self.assertRaises(ValueError, self.tokenize_sequence, "3.6ea")
         self.assertRaises(ValueError, self.tokenize_sequence, "67.8e+a")
+
+    def test_nan_infinity_parsing(self):
+        token_list = self.tokenize_sequence("NaN")
+        self.assertEqual(1, len(token_list))
+        ttype, token = token_list[0]
+        self.assertTrue(math.isnan(token))
+        self.assertEqual(ttype, TokenType.NUMBER)
+
+        self.assertNumberEquals(float("inf"), "Infinity")
+        self.assertNumberEquals(float("-inf"), "-Infinity")
+
+        self.assertRaises(ValueError, self.tokenize_sequence, "Na")
+        self.assertRaises(ValueError, self.tokenize_sequence, "Nax")
+        self.assertRaises(ValueError, self.tokenize_sequence, "In")
+        self.assertRaises(ValueError, self.tokenize_sequence, "Inf")
+        self.assertRaises(ValueError, self.tokenize_sequence, "Infi")
+        self.assertRaises(ValueError, self.tokenize_sequence, "Infin")
+        self.assertRaises(ValueError, self.tokenize_sequence, "Infini")
+        self.assertRaises(ValueError, self.tokenize_sequence, "Infinit")
+        self.assertRaises(ValueError, self.tokenize_sequence, "Infinityx")
+        self.assertRaises(ValueError, self.tokenize_sequence, "-In")
+        self.assertRaises(ValueError, self.tokenize_sequence, "-Inf")
+        self.assertRaises(ValueError, self.tokenize_sequence, "-Infi")
+        self.assertRaises(ValueError, self.tokenize_sequence, "-Infin")
+        self.assertRaises(ValueError, self.tokenize_sequence, "-Infini")
+        self.assertRaises(ValueError, self.tokenize_sequence, "-Infinit")
+        self.assertRaises(ValueError, self.tokenize_sequence, "-Infinityx")
 
     def test_operator_parsing(self):
         self.assertOperatorEquals("{", "{")
