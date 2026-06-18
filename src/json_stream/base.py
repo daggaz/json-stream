@@ -81,10 +81,10 @@ class StreamingJSONBase(ABC):
         raise NotImplementedError()  # pragma: no cover
 
     def __copy__(self):
-        raise copy.Error("Copying json_steam objects leads to a bad time")
+        raise copy.Error("Copying json_stream objects leads to a bad time")
 
     def __deepcopy__(self, memo):
-        raise copy.Error("Copying json_steam objects leads to a bad time")
+        raise copy.Error("Copying json_stream objects leads to a bad time")
 
 
 class PersistentStreamingJSONBase(StreamingJSONBase, ABC):
