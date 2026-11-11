@@ -34,4 +34,7 @@ def visit_many(fp_or_iterator, visitor, tokenizer=default_tokenizer, **tokenizer
 
 
 def visit(fp_or_iterator, visitor, tokenizer=default_tokenizer, **tokenizer_kwargs):
-    next(visit_many(fp_or_iterator, visitor, tokenizer, **tokenizer_kwargs))
+    try:
+        next(visit_many(fp_or_iterator, visitor, tokenizer, **tokenizer_kwargs))
+    except StopIteration:
+        raise ValueError('No JSON value found') from None
