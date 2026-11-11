@@ -4,7 +4,10 @@ from json_stream.select_tokenizer import default_tokenizer
 
 
 def load(fp_or_iterable, persistent=False, tokenizer=default_tokenizer, **tokenizer_kwargs):
-    return next(load_many(fp_or_iterable, persistent, tokenizer, **tokenizer_kwargs))
+    try:
+        return next(load_many(fp_or_iterable, persistent, tokenizer, **tokenizer_kwargs))
+    except StopIteration:
+        raise ValueError('No JSON value found') from None
 
 
 def load_many(fp_or_iterable, persistent=False, tokenizer=default_tokenizer, **tokenizer_kwargs):

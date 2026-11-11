@@ -1,6 +1,6 @@
 import copy
 import json
-from io import StringIO
+from io import BytesIO, StringIO
 
 from json_stream import load
 from json_stream.base import (
@@ -14,6 +14,19 @@ from json_stream.tests import JSONLoadTestCase
 
 
 class TestLoader(JSONLoadTestCase):
+    def test_load_without_json_value(self):
+        for persistent in (False, True):
+            for text in ('', ' \t\r\n'):
+                sources = [
+                    StringIO(text), BytesIO(text.encode()),
+                    [text], [text.encode()],
+                    list(text), [char.encode() for char in text],
+                ]
+                for source in sources:
+                    with self.subTest(persistent=persistent, text=text, source=source):
+                        with self.assertRaisesRegex(ValueError, 'No JSON value found'):
+                            load(source, persistent=persistent)
+
     def test_load_empty_object(self):
         obj = {}
         self._test_object(obj, persistent=True)
@@ -218,6 +231,7 @@ class TestLoader(JSONLoadTestCase):
 
     def test_primitives(self):
         primitives = (
+            ("null", None),
             ("true", True),
             ("false", False),
             ("123", 123),
