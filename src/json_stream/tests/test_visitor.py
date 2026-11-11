@@ -22,6 +22,28 @@ class TestVisitor(TestCase):
         json_stream.visit(StringIO("1"), lambda a, b: visited.append((a, b)))
         self.assertListEqual([(1, ())], visited)
 
+    def test_visitor_without_json_value(self):
+        for text in ('', ' \t\r\n'):
+            sources = [
+                StringIO(text), BytesIO(text.encode()),
+                [text], [text.encode()],
+                list(text), [char.encode() for char in text],
+            ]
+            for source in sources:
+                with self.subTest(text=text, source=source):
+                    visited = []
+                    with self.assertRaisesRegex(ValueError, 'No JSON value found'):
+                        json_stream.visit(source, lambda a, b: visited.append((a, b)))
+                    self.assertListEqual([], visited)
+
+    def test_visit_many_without_json_value(self):
+        for text in ('', ' \t\r\n'):
+            for source in (StringIO(text), BytesIO(text.encode())):
+                with self.subTest(text=text, source=source):
+                    visited = []
+                    self.assertListEqual([], list(json_stream.visit_many(source, lambda a, b: visited.append((a, b)))))
+                    self.assertListEqual([], visited)
+
     def _assert_data_okay(self, visited):
         self.assertListEqual([
             (1, ('x',)),
