@@ -13,6 +13,8 @@ jobs:
   # TEST JOB (multi-Python matrix)
   test:
     runs-on: ubuntu-latest
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -47,6 +49,8 @@ jobs:
         rm -f src/json_stream_rs_tokenizer.py
         pytest --cov=src --cov-report=xml --cov-report=term
     - name: Upload coverage to Codecov
+      # secrets are not available to pull requests from forks, so skip the upload there
+      if: ${{ env.CODECOV_TOKEN != '' }}
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage.xml
