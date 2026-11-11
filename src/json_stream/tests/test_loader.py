@@ -177,9 +177,9 @@ class TestLoader(JSONLoadTestCase):
 
     def test_not_copiable(self):
         json_str = '[["a"], "b", "c"]'
-        with self.assertRaisesRegex(copy.Error, "^Copying json_steam objects leads to a bad time$"):
+        with self.assertRaisesRegex(copy.Error, "^Copying json_stream objects leads to a bad time$"):
             copy.copy(load(StringIO(json_str)))
-        with self.assertRaisesRegex(copy.Error, "^Copying json_steam objects leads to a bad time$"):
+        with self.assertRaisesRegex(copy.Error, "^Copying json_stream objects leads to a bad time$"):
             copy.deepcopy(load(StringIO(json_str)))
 
     def test_transient_to_persistent(self):
