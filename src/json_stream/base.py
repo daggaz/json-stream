@@ -1,33 +1,30 @@
-import collections
 import copy
-from abc import ABC
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from itertools import chain
 from typing import Optional, Iterator, Any, Mapping, Sequence
 
 from json_stream.tokenizer import TokenType
+
+# module-level aliases avoid attribute lookups in the hot paths below
+OPERATOR = TokenType.OPERATOR
+STRING = TokenType.STRING
+COLON = (OPERATOR, ":")
 
 
 class TransientAccessException(Exception):
     pass
 
 
-class StreamingJSONBase(ABC):
+class StreamingJSONBase:
     INCOMPLETE_ERROR = "Unexpected end of file"
 
     @classmethod
     def factory(cls, token, token_stream, persistent):
-        if persistent:
-            if token == '{':
-                return PersistentStreamingJSONObject(token_stream)
-            if token == '[':
-                return PersistentStreamingJSONList(token_stream)
-        else:
-            if token == '{':
-                return TransientStreamingJSONObject(token_stream)
-            if token == '[':
-                return TransientStreamingJSONList(token_stream)
-        raise ValueError(f"Unknown operator {token}")  # pragma: no cover
+        try:
+            klass = _FACTORY[bool(persistent), token]
+        except KeyError:  # pragma: no cover
+            raise ValueError(f"Unknown operator {token}") from None
+        return klass(token_stream)
 
     _persistent_children: bool
 
@@ -40,30 +37,26 @@ class StreamingJSONBase(ABC):
     def tokenizer(self):
         return self._stream
 
-    def _clear_child(self):
-        if self._child is not None:
-            self._child.read_all()
-            self._child = None
-
     def _iter_items(self):
+        load = self._load_item
         while True:
             if not self.streaming:
                 return
-            self._clear_child()
+            # finish reading the previous child (inlined read_all(): this runs once per item)
+            child = self._child
+            if child is not None:
+                deque(child._iter_items(), maxlen=0)
+                self._child = None
             try:
-                item = self._load_item()
+                item = load()
             except StopIteration:
                 if self.streaming:
                     raise ValueError(self.INCOMPLETE_ERROR)
                 return
             yield item
 
-    def _done(self):
-        self.streaming = False
-        raise StopIteration()
-
     def read_all(self):
-        collections.deque(self._iter_items(), maxlen=0)
+        deque(self._iter_items(), maxlen=0)
 
     def _load_item(self):
         raise NotImplementedError()  # pragma: no cover
@@ -87,7 +80,7 @@ class StreamingJSONBase(ABC):
         raise copy.Error("Copying json_stream objects leads to a bad time")
 
 
-class PersistentStreamingJSONBase(StreamingJSONBase, ABC):
+class PersistentStreamingJSONBase(StreamingJSONBase):
     def __init__(self, token_stream):
         super().__init__(token_stream)
         self._data = self._init_persistent_data()
@@ -111,7 +104,7 @@ class PersistentStreamingJSONBase(StreamingJSONBase, ABC):
         return f"<{type(self).__name__}: {repr(self._data)}, {'STREAMING' if self.streaming else 'DONE'}>"
 
 
-class TransientStreamingJSONBase(StreamingJSONBase, ABC):
+class TransientStreamingJSONBase(StreamingJSONBase):
     def __init__(self, token_stream):
         super().__init__(token_stream)
         self._started = False
@@ -141,22 +134,24 @@ class TransientStreamingJSONBase(StreamingJSONBase, ABC):
         return f"<{type(self).__name__}: TRANSIENT, {'STREAMING' if self.streaming else 'DONE'}>"
 
 
-class StreamingJSONList(StreamingJSONBase, ABC):
+class StreamingJSONList(StreamingJSONBase):
     INCOMPLETE_ERROR = "Unterminated list at end of file"
 
     def _load_item(self):
-        token_type, v = next(self._stream)
-        if token_type == TokenType.OPERATOR:
+        stream = self._stream
+        token_type, v = next(stream)
+        if token_type == OPERATOR:
             if v == ']':
-                self._done()
+                self.streaming = False
+                raise StopIteration()
             if v == ',':
-                token_type, v = next(self._stream)
+                token_type, v = next(stream)
             elif v in '{[':
                 pass
             else:  # pragma: no cover
                 raise ValueError(f"Expecting value, comma or ], got {v}")
-        if token_type == TokenType.OPERATOR:
-            self._child = v = self.factory(v, self._stream, self._persistent_children)
+        if token_type == OPERATOR:
+            self._child = v = _FACTORY[self._persistent_children, v](stream)
         return v
 
     def _get__iter__(self):
@@ -209,26 +204,31 @@ class TransientStreamingJSONList(TransientStreamingJSONBase, StreamingJSONList):
         raise IndexError(f"Index {i} out of range")
 
 
-class StreamingJSONObject(StreamingJSONBase, ABC):
+class StreamingJSONObject(StreamingJSONBase):
     INCOMPLETE_ERROR = "Unterminated object at end of file"
 
     def _load_item(self):
-        token_type, k = next(self._stream)
-        if token_type == TokenType.OPERATOR:
+        stream = self._stream
+        token_type, k = next(stream)
+        if token_type == OPERATOR:
             if k == '}':
-                self._done()
+                self.streaming = False
+                raise StopIteration()
             if k == ',':
-                token_type, k = next(self._stream)
-        if token_type != TokenType.STRING:  # pragma: no cover
+                token_type, k = next(stream)
+        if token_type != STRING:  # pragma: no cover
             raise ValueError(f"Expecting string, comma or }}, got {k} ({token_type})")
 
-        token_type, token = next(self._stream)
-        if token_type != TokenType.OPERATOR or token != ":":
+        if next(stream) != COLON:
             raise ValueError("Expecting :")  # pragma: no cover
 
-        token_type, v = next(self._stream)
-        if token_type == TokenType.OPERATOR:
-            self._child = v = self.factory(v, self._stream, self._persistent_children)
+        token_type, v = next(stream)
+        if token_type == OPERATOR:
+            try:
+                klass = _FACTORY[self._persistent_children, v]
+            except KeyError:
+                raise ValueError(f"Unknown operator {v}") from None
+            self._child = v = klass(stream)
         return k, v
 
     def _get__iter__(self):
@@ -307,3 +307,11 @@ class TransientStreamingJSONObject(TransientStreamingJSONBase, StreamingJSONObje
     def values(self):
         self._check_started()
         return (v for k, v in self._iter_items())
+
+
+_FACTORY = {
+    (True, '{'): PersistentStreamingJSONObject,
+    (True, '['): PersistentStreamingJSONList,
+    (False, '{'): TransientStreamingJSONObject,
+    (False, '['): TransientStreamingJSONList,
+}
