@@ -69,6 +69,18 @@ class TestLoader(JSONLoadTestCase):
         self.assertEqual(data['b'], None)
         self.assertEqual(data['c'], True)
 
+    def test_load_object_views_after_partial_read_persistent(self):
+        json_str = '{"a": 1, "b": 2, "c": 3}'
+        for method, expected in (
+            ('keys', ['a', 'b', 'c']),
+            ('values', [1, 2, 3]),
+            ('items', [('a', 1), ('b', 2), ('c', 3)]),
+        ):
+            with self.subTest(method=method):
+                data = load(StringIO(json_str), persistent=True)
+                self.assertEqual(data['b'], 2)  # reads 'a' and 'b' into the cache
+                self.assertListEqual(list(getattr(data, method)()), expected)
+
     def test_load_object_get_transient(self):
         json_str = '{"a": 1, "b": null, "c": true}'
 

@@ -273,7 +273,7 @@ class PersistentStreamingJSONObject(PersistentStreamingJSONBase, StreamingJSONOb
         return chain(self._data.keys(), (k for k, v in self._iter_items()))
 
     def values(self):
-        return chain(self._data.keys(), (v for k, v in self._iter_items()))
+        return chain(self._data.values(), (v for k, v in self._iter_items()))
 
     def __getitem__(self, k) -> Any:
         try:
