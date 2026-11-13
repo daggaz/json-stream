@@ -12,16 +12,24 @@ on:
 jobs:
   # TEST JOB (multi-Python matrix)
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner || 'ubuntu-latest' }}
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
+        # setup-python has no 3.8/3.9 builds for ubuntu-latest (26.04), so pin those to 24.04
+        include:
+          - python-version: "3.8"
+            runner: ubuntu-24.04
+          - python-version: "3.9"
+            runner: ubuntu-24.04
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
@@ -47,6 +55,8 @@ jobs:
         rm -f src/json_stream_rs_tokenizer.py
         pytest --cov=src --cov-report=xml --cov-report=term
     - name: Upload coverage to Codecov
+      # secrets are not available to pull requests from forks, so skip the upload there
+      if: ${{ env.CODECOV_TOKEN != '' }}
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage.xml
@@ -68,10 +78,10 @@ jobs:
       id-token: write
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
 
     - name: Set up Python
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v7
       with:
         python-version: "3.14"
 

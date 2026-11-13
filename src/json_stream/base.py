@@ -36,6 +36,10 @@ class StreamingJSONBase(ABC):
         self._stream = token_stream
         self._child: Optional[StreamingJSONBase] = None
 
+    @property
+    def tokenizer(self):
+        return self._stream
+
     def _clear_child(self):
         if self._child is not None:
             self._child.read_all()
@@ -77,10 +81,10 @@ class StreamingJSONBase(ABC):
         raise NotImplementedError()  # pragma: no cover
 
     def __copy__(self):
-        raise copy.Error("Copying json_steam objects leads to a bad time")
+        raise copy.Error("Copying json_stream objects leads to a bad time")
 
     def __deepcopy__(self, memo):
-        raise copy.Error("Copying json_steam objects leads to a bad time")
+        raise copy.Error("Copying json_stream objects leads to a bad time")
 
 
 class PersistentStreamingJSONBase(StreamingJSONBase, ABC):
@@ -269,7 +273,7 @@ class PersistentStreamingJSONObject(PersistentStreamingJSONBase, StreamingJSONOb
         return chain(self._data.keys(), (k for k, v in self._iter_items()))
 
     def values(self):
-        return chain(self._data.keys(), (v for k, v in self._iter_items()))
+        return chain(self._data.values(), (v for k, v in self._iter_items()))
 
     def __getitem__(self, k) -> Any:
         try:

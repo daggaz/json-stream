@@ -1,6 +1,6 @@
 import copy
 import json
-from io import StringIO
+from io import BytesIO, StringIO
 
 from json_stream import load
 from json_stream.base import (
@@ -14,6 +14,19 @@ from json_stream.tests import JsonStreamTestCase
 
 
 class TestSyncLoader(JsonStreamTestCase):
+    def test_load_without_json_value(self):
+        for persistent in (False, True):
+            for text in ('', ' \t\r\n'):
+                sources = [
+                    StringIO(text), BytesIO(text.encode()),
+                    [text], [text.encode()],
+                    list(text), [char.encode() for char in text],
+                ]
+                for source in sources:
+                    with self.subTest(persistent=persistent, text=text, source=source):
+                        with self.assertRaisesRegex(ValueError, 'No JSON value found'):
+                            load(source, persistent=persistent)
+
     def test_load_empty_object(self):
         obj = {}
         self._test_object(obj, persistent=True)
@@ -28,6 +41,18 @@ class TestSyncLoader(JsonStreamTestCase):
         obj = {"a": 1, "b": None, "c": True}
         self._test_object(obj, persistent=True, binary=True)
         self._test_object(obj, persistent=False, binary=True)
+
+    def test_load_object_views_after_partial_read_persistent(self):
+        json_str = '{"a": 1, "b": 2, "c": 3}'
+        for method, expected in (
+            ('keys', ['a', 'b', 'c']),
+            ('values', [1, 2, 3]),
+            ('items', [('a', 1), ('b', 2), ('c', 3)]),
+        ):
+            with self.subTest(method=method):
+                data = load(StringIO(json_str), persistent=True)
+                self.assertEqual(data['b'], 2)  # reads 'a' and 'b' into the cache
+                self.assertListEqual(list(getattr(data, method)()), expected)
 
     def test_load_empty_list(self):
         obj = []
@@ -177,9 +202,9 @@ class TestSyncLoader(JsonStreamTestCase):
 
     def test_not_copiable(self):
         obj = [["a"], "b", "c"]
-        with self.assertRaisesRegex(copy.Error, "^Copying json_steam objects leads to a bad time$"):
+        with self.assertRaisesRegex(copy.Error, "^Copying json_stream objects leads to a bad time$"):
             copy.copy(load(self._to_stream(obj)))
-        with self.assertRaisesRegex(copy.Error, "^Copying json_steam objects leads to a bad time$"):
+        with self.assertRaisesRegex(copy.Error, "^Copying json_stream objects leads to a bad time$"):
             copy.deepcopy(load(self._to_stream(obj)))
 
     def test_transient_to_persistent(self):
@@ -218,6 +243,7 @@ class TestSyncLoader(JsonStreamTestCase):
 
     def test_primitives(self):
         primitives = (
+            ("null", None),
             ("true", True),
             ("false", False),
             ("123", 123),

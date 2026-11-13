@@ -7,6 +7,18 @@ from json_stream import to_standard_types
 
 
 class TestLoadMany(TestCase):
+    def test_load_many_without_json_value(self):
+        for persistent in (False, True):
+            for text in ('', ' \t\r\n'):
+                sources = [
+                    StringIO(text), BytesIO(text.encode()),
+                    [text], [text.encode()],
+                    list(text), [char.encode() for char in text],
+                ]
+                for source in sources:
+                    with self.subTest(persistent=persistent, text=text, source=source):
+                        self.assertEqual(list(json_stream.load_many(source, persistent=persistent)), [])
+
     def test_load_many(self):
         # NDJSON-like: one JSON value per line
         payload = "\n".join([
