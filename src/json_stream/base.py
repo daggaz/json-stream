@@ -224,7 +224,11 @@ class StreamingJSONObject(StreamingJSONBase):
 
         token_type, v = next(stream)
         if token_type == OPERATOR:
-            self._child = v = _FACTORY[self._persistent_children, v](stream)
+            try:
+                klass = _FACTORY[self._persistent_children, v]
+            except KeyError:
+                raise ValueError(f"Unknown operator {v}") from None
+            self._child = v = klass(stream)
         return k, v
 
     def _get__iter__(self):

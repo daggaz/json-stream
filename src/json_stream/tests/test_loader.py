@@ -262,6 +262,13 @@ class TestLoader(JSONLoadTestCase):
         with self.assertRaisesRegex(ValueError, "Unterminated object at end of file"):
             load(StringIO('{"x": 1,')).read_all()
 
+    def test_invalid_object_value(self):
+        for json_str in ('{"a": ]}', '{"a": ,}', '{"a": :}', '{"a": }'):
+            for persistent in (True, False):
+                with self.subTest(json_str=json_str, persistent=persistent):
+                    with self.assertRaises(ValueError):
+                        load(StringIO(json_str), persistent=persistent).read_all()
+
     def test_unicode(self):
         data = json.dumps('Ä')
         result = load(StringIO(data))
