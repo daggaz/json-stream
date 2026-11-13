@@ -32,6 +32,8 @@ class StreamingJSONBase:
         self.streaming = True
         self._stream = token_stream
         self._child: Optional[StreamingJSONBase] = None
+        # before the first item a comma is invalid; after it, items must be comma-separated
+        self._first = True
 
     @property
     def tokenizer(self):
@@ -140,16 +142,23 @@ class StreamingJSONList(StreamingJSONBase):
     def _load_item(self):
         stream = self._stream
         token_type, v = next(stream)
-        if token_type == OPERATOR:
+        if self._first:
+            if token_type == OPERATOR:
+                if v == ']':
+                    self.streaming = False
+                    raise StopIteration()
+                if v not in '{[':
+                    raise ValueError(f"Expecting value or ], got {v}")
+            self._first = False
+        else:
+            if token_type != OPERATOR or v not in ',]':
+                raise ValueError(f"Expecting comma or ], got {v!r}")
             if v == ']':
                 self.streaming = False
                 raise StopIteration()
-            if v == ',':
-                token_type, v = next(stream)
-            elif v in '{[':
-                pass
-            else:  # pragma: no cover
-                raise ValueError(f"Expecting value, comma or ], got {v}")
+            token_type, v = next(stream)
+            if token_type == OPERATOR and v not in '{[':
+                raise ValueError(f"Expecting value after comma, got {v}")
         if token_type == OPERATOR:
             self._child = v = _FACTORY[self._persistent_children, v](stream)
         return v
@@ -210,14 +219,22 @@ class StreamingJSONObject(StreamingJSONBase):
     def _load_item(self):
         stream = self._stream
         token_type, k = next(stream)
-        if token_type == OPERATOR:
+        if self._first:
+            if token_type == OPERATOR and k == '}':
+                self.streaming = False
+                raise StopIteration()
+            if token_type != STRING:
+                raise ValueError(f"Expecting string key or }}, got {k!r}")
+            self._first = False
+        else:
+            if token_type != OPERATOR or k not in ',}':
+                raise ValueError(f"Expecting comma or }}, got {k!r}")
             if k == '}':
                 self.streaming = False
                 raise StopIteration()
-            if k == ',':
-                token_type, k = next(stream)
-        if token_type != STRING:  # pragma: no cover
-            raise ValueError(f"Expecting string, comma or }}, got {k} ({token_type})")
+            token_type, k = next(stream)
+            if token_type != STRING:
+                raise ValueError(f"Expecting string key after comma, got {k!r}")
 
         if next(stream) != COLON:
             raise ValueError("Expecting :")  # pragma: no cover

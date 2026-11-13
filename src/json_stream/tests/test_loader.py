@@ -2,7 +2,7 @@ import copy
 import json
 from io import BytesIO, StringIO
 
-from json_stream import load
+from json_stream import load, to_standard_types, visit
 from json_stream.base import (
     TransientAccessException,
     PersistentStreamingJSONObject,
@@ -268,6 +268,44 @@ class TestLoader(JSONLoadTestCase):
                 with self.subTest(json_str=json_str, persistent=persistent):
                     with self.assertRaises(ValueError):
                         load(StringIO(json_str), persistent=persistent).read_all()
+
+    def test_separators(self):
+        # https://github.com/daggaz/json-stream/issues/55
+        invalid = (
+            ('[1 2]', "Expecting comma or \\], got 2"),
+            ('[3[4]]', "Expecting comma or \\], got '\\['"),
+            ('[{}{}]', "Expecting comma or \\], got '{'"),
+            ('[1 "a"]', "Expecting comma or \\], got 'a'"),
+            ('[,1]', "Expecting value or \\], got ,"),
+            ('[,]', "Expecting value or \\], got ,"),
+            ('[1,,2]', "Expecting value after comma, got ,"),
+            ('[1,]', "Expecting value after comma, got \\]"),
+            ('[1:2]', "Expecting comma or \\], got ':'"),
+            ('[[1 2]]', "Expecting comma or \\], got 2"),
+            ('{"a": 1 "b": 2}', "Expecting comma or }, got 'b'"),
+            ('{"a": 1 {}}', "Expecting comma or }, got '{'"),
+            ('{,"a": 1}', "Expecting string key or }, got ','"),
+            ('{"a": 1,}', "Expecting string key after comma, got '}'"),
+            ('{"a": 1,,"b": 2}', "Expecting string key after comma, got ','"),
+            ('{1: 2}', "Expecting string key or }, got 1"),
+            ('{"a": [1 2]}', "Expecting comma or \\], got 2"),
+        )
+        for json_str, message in invalid:
+            for persistent in (True, False):
+                with self.subTest(json_str=json_str, persistent=persistent):
+                    with self.assertRaisesRegex(ValueError, message):
+                        to_standard_types(load(StringIO(json_str), persistent=persistent))
+            with self.subTest(json_str=json_str, visit=True):
+                with self.assertRaisesRegex(ValueError, message):
+                    visit(StringIO(json_str), lambda item, path: None)
+
+        valid = ('[]', '[1]', '[1, 2, 3]', '[[], {}, [1, [2]], {"a": {}}]', '{}', '{"a": 1}',
+                 '{"a": 1, "b": [1, 2], "c": {"d": null}}', ' [ 1 , 2 ] ', '{ "a" : 1 , "b" : 2 }')
+        for json_str in valid:
+            for persistent in (True, False):
+                with self.subTest(json_str=json_str, persistent=persistent):
+                    self.assertEqual(json.loads(json_str),
+                                     to_standard_types(load(StringIO(json_str), persistent=persistent)))
 
     def test_unicode(self):
         data = json.dumps('Ä')
