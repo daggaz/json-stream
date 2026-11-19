@@ -2,6 +2,7 @@ import io
 import json
 from unittest import TestCase, skipUnless
 import json_stream
+from json_stream.tokenizer import tokenize
 
 try:
     import json_stream_rs_tokenizer
@@ -9,16 +10,17 @@ try:
 except ImportError:
     HAS_RS_TOKENIZER = False
 
-class TestBinaryResumption(TestCase):
-    @skipUnless(HAS_RS_TOKENIZER, 'Rust tokenizer not available')
+class BinaryResumptionTests:
+    tokenizer = None
+
     def test_json_then_binary(self):
         json_header = json.dumps({"header": "info"})
-        binary_data = b'\x00\x01\x02\x03'
+        binary_data = b'\x00\xff\xfe\x03'
         test_data = json_header.encode('utf-8') + binary_data
         test_file = io.BytesIO(test_data)
         
         # Load with correct_cursor=True
-        header = json_stream.load(test_file, correct_cursor=True)
+        header = json_stream.load(test_file, tokenizer=self.tokenizer, correct_cursor=True)
         
         # Consume all data from header
         header.read_all()
@@ -33,7 +35,6 @@ class TestBinaryResumption(TestCase):
         remaining = test_file.read()
         self.assertEqual(remaining, binary_data)
 
-    @skipUnless(HAS_RS_TOKENIZER, 'Rust tokenizer not available')
     def test_binary_then_json(self):
         binary_data = b'binary_start'
         json_data = b'{"a": 1}'
@@ -45,10 +46,9 @@ class TestBinaryResumption(TestCase):
         self.assertEqual(read_binary, binary_data)
         
         # Load JSON
-        data = json_stream.load(test_file)
+        data = json_stream.load(test_file, tokenizer=self.tokenizer)
         self.assertEqual(dict(data.items()), {"a": 1})
 
-    @skipUnless(HAS_RS_TOKENIZER, 'Rust tokenizer not available')
     def test_json_then_binary_then_json(self):
         json_1 = b'{"first": true}'
         binary_middle = b'middle_binary'
@@ -57,7 +57,7 @@ class TestBinaryResumption(TestCase):
         test_file = io.BytesIO(test_data)
         
         # Load first JSON
-        data1 = json_stream.load(test_file, correct_cursor=True)
+        data1 = json_stream.load(test_file, tokenizer=self.tokenizer, correct_cursor=True)
         self.assertEqual(dict(data1.items()), {"first": True})
         data1.read_all()
         data1.tokenizer.park_cursor()
@@ -68,10 +68,9 @@ class TestBinaryResumption(TestCase):
         self.assertEqual(read_middle, binary_middle)
         
         # Load second JSON
-        data2 = json_stream.load(test_file)
+        data2 = json_stream.load(test_file, tokenizer=self.tokenizer)
         self.assertEqual(dict(data2.items()), {"second": False})
 
-    @skipUnless(HAS_RS_TOKENIZER, 'Rust tokenizer not available')
     def test_load_many_then_binary(self):
         json_1 = '{"a": 1}'
         json_2 = '{"b": 2}'
@@ -80,7 +79,7 @@ class TestBinaryResumption(TestCase):
 
         test_file = io.BytesIO(test_data)
 
-        loader = json_stream.load_many(test_file, correct_cursor=True)
+        loader = json_stream.load_many(test_file, tokenizer=self.tokenizer, correct_cursor=True)
 
         # Read first JSON
         doc1 = next(loader)
@@ -95,3 +94,14 @@ class TestBinaryResumption(TestCase):
 
         self.assertEqual(test_file.tell(), len(json_1) + len(json_2))
         self.assertEqual(test_file.read(), binary_data)
+
+
+@skipUnless(HAS_RS_TOKENIZER, 'Rust tokenizer not available')
+class TestBinaryResumptionRust(BinaryResumptionTests, TestCase):
+    @property
+    def tokenizer(self):
+        return json_stream_rs_tokenizer.RustTokenizer
+
+
+class TestBinaryResumptionPython(BinaryResumptionTests, TestCase):
+    tokenizer = staticmethod(tokenize)
