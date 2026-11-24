@@ -138,6 +138,24 @@ class TestLoader(JSONLoadTestCase):
         with self.assertRaises(IndexError):
             _ = data[3]
 
+    def test_load_list_negative_index_persistent(self):
+        json_str = '[1, true, ""]'
+
+        # Access before any items have been read
+        data = load(StringIO(json_str), persistent=True)
+        self.assertEqual(data[-1], "")
+        self.assertEqual(data[-3], 1)
+        with self.assertRaises(IndexError):
+            _ = data[-4]
+
+        # Access after a partial read
+        data = load(StringIO(json_str), persistent=True)
+        self.assertTrue(data[1])
+        self.assertEqual(data[-1], "")
+        self.assertEqual(data[-3], 1)
+        with self.assertRaises(IndexError):
+            _ = data[-4]
+
     def test_load_list_get_transient(self):
         json_str = '[1, true, ""]'
 
