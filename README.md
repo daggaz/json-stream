@@ -498,11 +498,12 @@ if `json-stream-rs-tokenizer` is not available.
 
 #### <a id="reading-mixed-data"></a> Reading mixed data
 
-When using the Rust tokenizer, you can also use `json-stream` to parse mixed
-data, for example a file with a JSON followed by binary data. 
+You can also use `json-stream` to parse mixed data, for example a file with a
+JSON followed by binary data. This works with both the Rust and the pure python
+tokenizer.
  
 To do this, you should pass `correct_cursor=True` to `load()`. The ensures the
-rust tokenizer keeps track of the exact stream position it has read up to. This
+tokenizer keeps track of the exact stream position it has read up to. This
 comes with a **significant performance cost** for un-seekable streams.
 
 After reading the JSON data, call `read_all()` on the top-level object returned
@@ -763,7 +764,6 @@ allows the data to be written as it is produced.
 * Allow long strings in the JSON to be read as streams themselves
 * Allow transient mode on seekable streams to seek to data earlier in
 the stream instead of raising a `TransientAccessException`
-* A more efficient tokenizer?
 
 # Alternatives
 
