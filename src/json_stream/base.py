@@ -186,6 +186,9 @@ class PersistentStreamingJSONList(PersistentStreamingJSONBase, StreamingJSONList
         raise IndexError(f"Index {i} out of range")
 
     def __getitem__(self, k) -> Any:
+        if isinstance(k, int) and k < 0:
+            self.read_all()
+            return self._data[k]
         try:
             return self._data[k]
         except IndexError:
