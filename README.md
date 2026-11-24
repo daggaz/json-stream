@@ -798,6 +798,18 @@ path lookup based interface.
 * It does not provide a pythonic `dict`/`list`-like interface
 * Must know all data paths lookup in advance (or make multiple passes)
 
+## ijson
+
+[ijson](https://github.com/ICRAR/ijson) is an iterative JSON parser with a pure python
+implementation and several faster backends (including a C one). It supports asyncio, which
+`json-stream` doesn't (yet).
+
+### Why not ijson?
+
+* It does not provide a pythonic `dict`/`list`-like interface
+* Data is selected by path prefix (e.g. `ijson.items(f, 'results.item')`) or by handling
+  low-level parse events, rather than by navigating it in code
+
 # Contributing
 
 See the project [contribution guide](https://github.com/daggaz/json-stream/blob/master/CONTRIBUTING.md).
