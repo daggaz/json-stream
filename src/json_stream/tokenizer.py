@@ -3,7 +3,9 @@ Originally based on tokenizer from the NAYA project
 https://github.com/danielyule/naya
 Copyright (c) 2019 Daniel Yule
 """
+import codecs
 import io
+import re
 import unicodedata
 from typing import Iterator, Optional, Tuple, Union
 
@@ -69,6 +71,14 @@ class SpecialChar:
     EOF = "EOF"
 
 
+# with a buffer, runs of plain string characters and of whitespace can be consumed in one
+# step instead of one process_char() call per character
+_STRING_SPECIAL = re.compile(r'["\\]')
+_NOT_WHITESPACE = re.compile(r'[^ \t\n\r]')
+_NOT_DIGIT = re.compile(r'[^0-9]')
+_DIGIT_STATES = frozenset((State.INTEGER, State.FLOATING_POINT, State.INTEGER_EXP))
+
+
 def _guess_encoding(stream):
     # if it looks like a urllib response, get the charset from the headers (if any)
     try:
@@ -82,14 +92,6 @@ def _guess_encoding(stream):
     return encoding
 
 
-def _ensure_text(stream):
-    data = stream.read(0)
-    if isinstance(data, bytes):
-        encoding = _guess_encoding(stream)
-        return io.TextIOWrapper(stream, encoding=encoding)
-    return stream
-
-
 class Tokenizer(Iterator[Token]):
     """
     The JSON state machine lives in process_char(), which does no I/O: it takes one
@@ -97,9 +99,29 @@ class Tokenizer(Iterator[Token]):
     in __next__, so other ways of feeding characters (buffered or async reads) can
     reuse the same state machine.
     """
-    def __init__(self, stream):
+    def __init__(self, stream, *, buffering: int = -1, correct_cursor: bool = False, **_):
+        """
+        buffering: how many characters (or bytes, for binary streams) to read at a time.
+            -1 (the default) picks a size, 0 or 1 reads one at a time. By default, text
+            streams that can't seek (e.g. pipes) are read one character at a time, as reading
+            more would wait for that many characters to arrive.
+        correct_cursor: make park_cursor() leave the stream just after the last character
+            processed. Seekable streams are still buffered and park_cursor() rewinds them;
+            unseekable streams are read one character at a time. Matches the rust tokenizer.
+
+        Other keyword arguments are accepted and ignored, so that arguments meant for the
+        rust tokenizer don't break the python one.
+        """
         self.stream = stream
-        self._text_stream = False
+        self._buffering = buffering
+        self._correct_cursor = correct_cursor
+        self._read = None
+        self._seekable = False
+        self._decoder = None
+        self._undecodable = b""
+        self._buf = ""
+        self._pos = 0
+        self._chunk_start = None
         self.token_buffer = []
         self.unicode_buffer = ""
         self.state = State.WHITESPACE
@@ -107,6 +129,97 @@ class Tokenizer(Iterator[Token]):
         self.c = None
         self.advance = True
         self.eof = False
+
+    def _setup(self):
+        stream = self.stream
+        try:
+            self._seekable = stream.seekable()
+        except AttributeError:
+            self._seekable = False
+        binary = isinstance(stream.read(0), bytes)
+        size = self._buffering
+        if size < 0:
+            if self._seekable:
+                size = io.DEFAULT_BUFFER_SIZE
+            elif binary:
+                # read1 returns whatever is available (up to size) rather than waiting for size
+                # bytes, so items are still produced as soon as their data arrives
+                size = 1 if self._correct_cursor else io.DEFAULT_BUFFER_SIZE
+            else:
+                # text streams have no read1, and read(size) on a pipe or socket waits for size
+                # characters, so read unseekable text streams one character at a time
+                size = 1
+        self._size = max(size, 1)
+        if binary:
+            self._encoding = _guess_encoding(stream)
+            self._decoder = codecs.getincrementaldecoder(self._encoding)()
+            self._read = getattr(stream, "read1", stream.read)
+        else:
+            self._read = stream.read
+
+    def _fill(self) -> str:
+        """Read the next chunk into the buffer. Returns "" at the end of the stream."""
+        if self._correct_cursor and self._seekable and self._decoder is None:
+            # text stream positions are opaque cookies, so remember where this chunk started
+            self._chunk_start = self.stream.tell()
+        if self._decoder is None:
+            buf = self._read(self._size)
+        else:
+            buf = ""
+            while not buf:
+                if self._undecodable:
+                    # the tokenizer has reached bytes that can't be decoded: raise the error now
+                    data, self._undecodable = self._undecodable, b""
+                else:
+                    data = self._read(self._size)
+                buf = self._decode(data)
+                if not data:
+                    break
+        self._buf = buf
+        self._pos = 0
+        return buf
+
+    def _decode(self, data: bytes) -> str:
+        # an empty read means end of stream; final=True raises on a truncated character
+        decoder = self._decoder
+        pending = decoder.getstate()[0]
+        try:
+            return decoder.decode(data, final=not data)
+        except UnicodeDecodeError as e:
+            # data read ahead may not be text at all (e.g. JSON followed by binary data), so
+            # only raise once the tokenizer gets that far: decode up to the bad bytes for now
+            data = pending + data
+            decoder.reset()
+            if e.start == 0:
+                raise
+            self._undecodable = data[e.start:]
+            return decoder.decode(data[:e.start])
+
+    @property
+    def remainder(self) -> Union[str, bytes]:
+        """Data read from the stream but not yet processed, as str or bytes to match the stream."""
+        rest = self._buf[self._pos:]
+        if self._decoder is None:
+            return rest
+        return rest.encode(self._encoding) + self._decoder.getstate()[0] + self._undecodable
+
+    def park_cursor(self):
+        """
+        Move the stream back to just after the last character processed, undoing read-ahead.
+
+        Like the rust tokenizer, this only does anything with correct_cursor=True: seekable
+        streams are rewound, and unseekable ones were never read ahead in the first place.
+        """
+        if not self._correct_cursor or not self._seekable or self._read is None:
+            return
+        if self._decoder is None:
+            if self._chunk_start is not None:
+                self.stream.seek(self._chunk_start)
+                self.stream.read(self._pos)
+        else:
+            self.stream.seek(self.stream.tell() - len(self.remainder))
+        self._buf = ""
+        self._pos = 0
 
     def is_delimiter(self, char: str):
         return char.isspace() or char in "{}[]:," or char == SpecialChar.EOF
@@ -428,31 +541,64 @@ class Tokenizer(Iterator[Token]):
         return advance, token
 
     def __next__(self) -> Token:
-        if not self._text_stream:
-            self.stream = _ensure_text(self.stream)
-            self._text_stream = True
+        if self._read is None:
+            self._setup()
+        process_char = self.process_char
+        buf = self._buf
+        pos = self._pos
         while not self.eof:
             if self.advance:
-                self.c = self.stream.read(1)
+                if pos >= len(buf):
+                    buf = self._fill()
+                    pos = 0
+                    if not buf:
+                        self.eof = True
+                        _, token = self.process_char(SpecialChar.EOF)
+                        if token:
+                            return token
+                        break
+                state = self.state
+                if state == State.STRING:
+                    m = _STRING_SPECIAL.search(buf, pos)
+                    end = m.start() if m else len(buf)
+                    if end > pos:
+                        self.token_buffer.append(buf[pos:end])
+                        self.index += end - pos
+                        pos = end
+                        continue
+                elif state == State.WHITESPACE:
+                    m = _NOT_WHITESPACE.search(buf, pos)
+                    end = m.start() if m else len(buf)
+                    if end > pos:
+                        self.index += end - pos
+                        pos = end
+                        continue
+                elif state in _DIGIT_STATES:
+                    m = _NOT_DIGIT.search(buf, pos)
+                    end = m.start() if m else len(buf)
+                    if end > pos:
+                        self.token_buffer.append(buf[pos:end])
+                        self.index += end - pos
+                        pos = end
+                        continue
+                self.c = buf[pos]
+                pos += 1
                 self.index += 1
-                if not self.c:
-                    self.eof = True
-                    _, token = self.process_char(SpecialChar.EOF)
-                    if token:
-                        return token
-                    break
             try:
-                self.advance, token = self.process_char(self.c)
+                self.advance, token = process_char(self.c)
             except ValueError as e:
+                self._pos = pos
                 raise ValueError("".join([e.args[0], " at index {}".format(self.index)]))
             if token:
+                self._pos = pos
                 self.token_buffer = []
                 return token
+        self._pos = pos
         raise StopIteration()
 
     def __iter__(self) -> Iterator[Token]:
         return self
 
 
-def tokenize(stream) -> Iterator[Token]:
-    return Tokenizer(stream)
+def tokenize(stream, **kwargs) -> Iterator[Token]:
+    return Tokenizer(stream, **kwargs)
